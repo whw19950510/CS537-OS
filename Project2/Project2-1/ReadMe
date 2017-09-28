@@ -1,0 +1,16 @@
+Problems with the programming
+1.exit implementation
+2.error deal part:how to deal with ">""<" 
+deal with no arguments files and command
+3.differenciate different situation {
+    backgrounds;
+    how to handle background;
+    track every process
+}
+
+4.all white space && more than 128 bytes
+no arguments//file can't be read or write already handled
+
+5.count programming marked
+
+execvp();
