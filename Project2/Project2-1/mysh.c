@@ -99,7 +99,7 @@ int main(int argc,char* argv[])
                             {//after retrieve the outfile num, the while loop will again
                                 if(strcmp(command[j],"&")==0) break;//meet the background
                                 if(strcmp(command[j],"<")==0) break;
-                                if(j<argu&&strcmp(command[j],"<")!=0&&strcmp(command[j],"&")!=0) outfilenum++;
+                                if(strcmp(command[j],"<")!=0&&strcmp(command[j],"&")!=0) outfilenum++;
                                 j++;
                             }
                         }
@@ -110,8 +110,8 @@ int main(int argc,char* argv[])
                             while(j<argu)
                             {
                                 if(strcmp(command[j],"&")==0) break;//meet the background
-                                if(strcmp(command[j],"<")==0) break;
-                                if(j<argu&&strcmp(command[j],">")!=0&&strcmp(command[j],"&")!=0) infilenum++;
+                                if(strcmp(command[j],">")==0) break;
+                                if(strcmp(command[j],">")!=0&&strcmp(command[j],"&")!=0) infilenum++;
                                 j++;
                             }
                         }
@@ -120,7 +120,7 @@ int main(int argc,char* argv[])
                         i++;
                     }
 
-                    if(reout==0||rein==0) continue; //no command after remove,</> is the first one
+                    if(reout==0||rein==0) {linehist--;continue;} //no command after remove,</> is the first one
                     // no redirection,just execute,possible & not handled
                     if(reout==-1&&rein==-1)
                     {
@@ -129,10 +129,7 @@ int main(int argc,char* argv[])
                       int childid=fork();
                       //child process
                       if(childid==-1)
-                      {
-                        write(STDERR_FILENO, error_message, strlen(error_message));
-                        continue;
-                      }
+                      {write(STDERR_FILENO, error_message, strlen(error_message));continue;}
                       if(childid==0)
                       {
                           if(execvp(command[0],command)==-1)//detect the command can be executed
@@ -144,10 +141,7 @@ int main(int argc,char* argv[])
                       else
                       {
                         if(waitpid(childid,&status,WUNTRACED)==-1)
-                        {
-                            write(STDERR_FILENO, error_message, strlen(error_message));
-                            continue;
-                        }
+                        {write(STDERR_FILENO, error_message, strlen(error_message));continue;}
                       }
                     } 
                     //exists redirection in,no out redirection
@@ -176,15 +170,9 @@ int main(int argc,char* argv[])
                         {
                             int fdin=open(command[rein+1],O_RDONLY);
                             if(fdin==-1)
-                            {
-                                write(STDERR_FILENO, error_message, strlen(error_message));
-                                continue;
-                            }
+                            {write(STDERR_FILENO, error_message, strlen(error_message));continue;}
                             if(dup2(fdin,STDIN_FILENO)==-1)
-                            {
-                                write(STDERR_FILENO, error_message, strlen(error_message));
-                                continue;
-                            }
+                            {write(STDERR_FILENO, error_message, strlen(error_message));continue;}
                             close(fdin);
                             if(execvp(curcommand[0],curcommand)==-1)//detect the command can be executed
                             {
@@ -195,10 +183,7 @@ int main(int argc,char* argv[])
                         else
                         {
                           if(waitpid(childid,&status,WUNTRACED)==-1)
-                          {
-                              write(STDERR_FILENO, error_message, strlen(error_message));
-                              continue;
-                          }
+                          {write(STDERR_FILENO, error_message, strlen(error_message));continue;}
                         }
                         
                     }
@@ -229,15 +214,9 @@ int main(int argc,char* argv[])
                         {
                             int fdout=open(command[reout+1],O_CREAT|O_WRONLY|O_TRUNC,00744);
                             if(fdout==-1)
-                            {
-                                write(STDERR_FILENO, error_message, strlen(error_message));
-                                continue;
-                            }
+                            {write(STDERR_FILENO, error_message, strlen(error_message));continue;}
                             if(dup2(fdout,STDOUT_FILENO)==-1)
-                            {
-                                write(STDERR_FILENO, error_message, strlen(error_message));
-                                continue;
-                            }
+                            {write(STDERR_FILENO, error_message, strlen(error_message));continue;}   
                             close(fdout);
                             if(execvp(curcommand[0],curcommand)==-1)//detect the command can be executed
                             {
@@ -248,38 +227,51 @@ int main(int argc,char* argv[])
                         else
                         {
                           if(waitpid(childid,&status,WUNTRACED)==-1)
-                          {
-                              write(STDERR_FILENO, error_message, strlen(error_message));
-                              continue;
-                          }
+                          {write(STDERR_FILENO, error_message, strlen(error_message));continue;}
                         }
                     }
-                    /*
+                    //both redirection out && redirection in
                     else if(reout!=-1&&rein!=-1)
                     {
-                      if(outfilenum>1||infilenum>1)
+                      
+                      if(reout==argu-1||rein==argu-1||outfilenum>1||infilenum>1)
                       {write(STDERR_FILENO,error_message,sizeof(error_message));continue;}
+                      char* curcommand[100];
+                      int index=0;
+                      while(index<reout&&index<rein)
+                      {
+                          curcommand[index]=strdup(command[index]);
+                          //printf("%s\n",curcommand[index]);
+                          index++;
+                      }
+                      curcommand[index]=NULL;
+                      fflush(stdout);
+                      int status;
                       int childid=fork();
                       //child process
                       if(childid==0)
                       {
-                          int fdo=open(command[reout+1],O_WRONLY|O_CREAT|O_TRUNC);
+                          int fdout=open(command[reout+1],O_WRONLY|O_CREAT|O_TRUNC,00744);
                           int fdin=open(command[rein+1],O_RDONLY);
-                          if(fdo==-1||fdin==-1)
-                          {
-                              write(STDERR_FILENO, error_message, strlen(error_message));
-                              continue;
-                          }
-                          if(dup2(fdo,1)==-1||dup2(fdin,0)==-1)
-                          write(STDERR_FILENO, error_message, strlen(error_message));
-                          close(fdo);
+                          if(fdout==-1||fdin==-1)
+                          {write(STDERR_FILENO, error_message, strlen(error_message));continue;} 
+                          if(dup2(fdout,STDOUT_FILENO)==-1||dup2(fdin,STDIN_FILENO)==-1)
+                          {write(STDERR_FILENO, error_message, strlen(error_message));continue;}
+                          close(fdout);
                           close(fdin);
-                          execvp(command[0],command);
-
+                          if(execvp(curcommand[0],curcommand)==-1)
+                          {
+                                write(STDERR_FILENO, error_message, strlen(error_message));
+                                continue;                        
+                          }
                       }
-                      continue;
+                      else
+                      {
+                        if(waitpid(childid,&status,WUNTRACED)==-1)
+                        {write(STDERR_FILENO, error_message, strlen(error_message));continue;}
+                      }
                     }
-                    */
+                    
 
                 }
             }
