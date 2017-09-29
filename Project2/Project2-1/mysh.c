@@ -20,7 +20,6 @@ int main(int argc,char* argv[])
         if(fgets(input,128,stdin)==NULL)
         {
             write(STDERR_FILENO, error_message, strlen(error_message));
-            //fprintf(stderr,"%s",error_message);
             break;
         }
         else
@@ -29,7 +28,6 @@ int main(int argc,char* argv[])
             if (input[sizeof input - 1] == '\0' && input[sizeof input - 2] != '\n')
             {
                 write(STDERR_FILENO, error_message, strlen(error_message));
-                //fprintf(stderr,"%s",error_message);
                 continue;
             }
             else
@@ -86,6 +84,7 @@ int main(int argc,char* argv[])
                 else
                 {
                     //Here deal with all cases that is not built-in methods
+                    //need to deal with command again, only keep command and arguments
                     int reout=-1,rein=-1,pipepos=-1,back=-1;
                     int outfilenum=0,infilenum=0;
                     int i=0;
@@ -99,6 +98,7 @@ int main(int argc,char* argv[])
                             while(j<argu)
                             {//after retrieve the outfile num, the while loop will again
                                 if(strcmp(command[j],"&")==0) break;//meet the background
+                                if(strcmp(command[j],"<")==0) break;
                                 if(j<argu&&strcmp(command[j],"<")!=0&&strcmp(command[j],"&")!=0) outfilenum++;
                                 j++;
                             }
@@ -110,6 +110,7 @@ int main(int argc,char* argv[])
                             while(j<argu)
                             {
                                 if(strcmp(command[j],"&")==0) break;//meet the background
+                                if(strcmp(command[j],"<")==0) break;
                                 if(j<argu&&strcmp(command[j],">")!=0&&strcmp(command[j],"&")!=0) infilenum++;
                                 j++;
                             }
@@ -120,12 +121,12 @@ int main(int argc,char* argv[])
                     }
 
                     if(reout==0||rein==0) continue; //no command after remove,</> is the first one
-                    // no redirection,just execute
+                    // no redirection,just execute,possible & not handled
                     if(reout==-1&&rein==-1)
                     {
                       fflush(stdout);
-                      int childid=fork();
                       int status;
+                      int childid=fork();
                       //child process
                       if(childid==-1)
                       {
@@ -149,15 +150,22 @@ int main(int argc,char* argv[])
                         }
                       }
                     } 
-                    //exists redirection in,no out
+                    //exists redirection in,no out redirection
                     else if(reout==-1&&rein!=-1)
                     {
-                        //if(rein==0) continue; //removed < become empty command
-                        if(rein==argu-1||infilenum!=1)
+                        if(rein==argu-1||infilenum!=1) //file numbers >1/or file come in
                         {write(STDERR_FILENO,error_message,sizeof(error_message));continue;}
+                        char* curcommand[100];
+                        int index=0;//concatanate current command
+                        while(index<100&&index<rein)
+                        {
+                            curcommand[index]=strdup(command[index]);
+                            index++;
+                        }
+                        curcommand[index]=NULL;
                         fflush(stdout);
-                        int childid=fork();
                         int status;
+                        int childid=fork();
                         //child process
                         if(childid==-1)
                         {
@@ -178,12 +186,7 @@ int main(int argc,char* argv[])
                                 continue;
                             }
                             close(fdin);
-                            char* curcommand[10];
-                            curcommand[0]=strdup(command[0]);
-                            //curcommand[1]=strdup(command[rein+1]);
-                            //curcommand[2]=NULL;
-                            curcommand[1]=NULL;
-                            if(execvp(command[0],curcommand)==-1)//detect the command can be executed
+                            if(execvp(curcommand[0],curcommand)==-1)//detect the command can be executed
                             {
                               write(STDERR_FILENO, error_message, strlen(error_message));
                               continue;
@@ -199,16 +202,23 @@ int main(int argc,char* argv[])
                         }
                         
                     }
-                    
                     //exists redirection out,no in
                     else if(reout!=-1&&rein==-1)
                     {
-                        //if(reout==0) continue; //removed > become empty command
                         if(reout==argu-1||outfilenum!=1)//arguments num incorrect
                         {write(STDERR_FILENO,error_message,sizeof(error_message));continue;}
+                        char* curcommand[100];
+                        int index=0;
+                        while(index<reout)
+                        {
+                            curcommand[index]=strdup(command[index]);
+                            //printf("%s\n",curcommand[index]);
+                            index++;    
+                        }
+                        curcommand[index]=NULL;
                         fflush(stdout);
-                        int childid=fork();
                         int status;
+                        int childid=fork();          
                         //child process
                         if(childid==-1)
                         {
@@ -217,7 +227,7 @@ int main(int argc,char* argv[])
                         }
                         if(childid==0)
                         {
-                            int fdout=open(command[reout+1],O_CREAT|O_WRONLY|O_TRUNC);
+                            int fdout=open(command[reout+1],O_CREAT|O_WRONLY|O_TRUNC,00744);
                             if(fdout==-1)
                             {
                                 write(STDERR_FILENO, error_message, strlen(error_message));
@@ -229,10 +239,7 @@ int main(int argc,char* argv[])
                                 continue;
                             }
                             close(fdout);
-                            char* curcommand[10];
-                            curcommand[0]=strdup(command[0]);
-                            curcommand[1]=NULL;
-                            if(execvp(command[0],curcommand)==-1)//detect the command can be executed
+                            if(execvp(curcommand[0],curcommand)==-1)//detect the command can be executed
                             {
                               write(STDERR_FILENO, error_message, strlen(error_message));
                               continue;
