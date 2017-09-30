@@ -1,3 +1,4 @@
+#define _GNU_SOURCE
 #include<stdio.h>
 #include<string.h>
 #include<unistd.h>
@@ -20,7 +21,7 @@ int main(int argc,char* argv[])
         if(fgets(input,128,stdin)==NULL)
         {
             write(STDERR_FILENO, error_message, strlen(error_message));
-            break;
+            exit(1);
         }
         else
         {
@@ -60,26 +61,29 @@ int main(int argc,char* argv[])
                             continue;
                         }
                         if(chdir(homepath)==0) continue;//success cd into home
-                        else{write(STDERR_FILENO, error_message, strlen(error_message));}
+                        else{write(STDERR_FILENO, error_message, strlen(error_message));continue;}
                     }
                     else
                     {
                         if(chdir(command[1])==0) continue;//success cd into some path
-                        else{write(STDERR_FILENO, error_message, strlen(error_message));}
+                        else{write(STDERR_FILENO, error_message, strlen(error_message));continue;}
                     }
                 //deal with pwd
                 }
                 else if(strcmp(command[0],"pwd")==0)
                 {
+                    if(command[1]!=NULL)
+                    {write(STDERR_FILENO, error_message, strlen(error_message));continue;}
                     char bufferpath[512];
                     if(getcwd(bufferpath,sizeof(bufferpath))==NULL)
-                        write(STDERR_FILENO, error_message, strlen(error_message));
+                    {write(STDERR_FILENO, error_message, strlen(error_message));continue;}
                     printf("%s\n",bufferpath);
                 //deal with exit
                 }
                 else if(strcmp(command[0],"exit")==0)
                 {
-                    return 0;
+                    
+                    exit(0);
                 }
                 else
                 {
@@ -115,14 +119,81 @@ int main(int argc,char* argv[])
                                 j++;
                             }
                         }
-                        if(strcmp(command[i],"|")==0) pipepos=i;
-                        if(strcmp(command[i],"&")==0) back=i;
+                        if(strcmp(command[i],"|")==0) {pipepos=i;break;}
+                        if(strcmp(command[i],"&")==0) {back=i;break;}
                         i++;
                     }
-
                     if(reout==0||rein==0) {linehist--;continue;} //no command after remove,</> is the first one
+                    if(pipepos!=-1)
+                    {
+                        if(pipepos==0||pipepos==argu-1)//no command before | or after |
+                        {write(STDERR_FILENO, error_message, strlen(error_message));continue;}
+                        //extract 2 commands respectively
+                        int index=0,index2=0;
+                        int status;
+                        int reid;
+                        char* curcommand1[100];
+                        char* curcommand2[100];
+                        while(index<pipepos)
+                        {
+                            curcommand1[index]=strdup(command[index]);
+                            index++;
+                        }
+                        curcommand1[index]=NULL;
+                        index=pipepos+1;
+                        while(index<argu)
+                        {
+                            curcommand2[index2]=strdup(command[index]);
+                            index++;
+                            index2++;
+                        }
+                        curcommand2[index2]=NULL;
+                        //connect pipe descriptor
+                        int pipedes[2];
+                        if(-1==pipe(pipedes))
+                        {write(STDERR_FILENO, error_message, strlen(error_message));continue;};
+                        fflush(stdout);
+                        int firstson=fork();
+                        if(firstson==-1)
+                        {write(STDERR_FILENO, error_message, strlen(error_message));continue;};
+                        if(firstson==0)
+                        {   
+                            if(-1==dup2(pipedes[1],STDOUT_FILENO))
+                            {write(STDERR_FILENO, error_message, strlen(error_message));continue;};
+                            close(pipedes[1]);//////////correct all
+                            close(pipedes[0]);
+                            if(-1==execvp(curcommand1[0],curcommand1))
+                            {write(STDERR_FILENO, error_message, strlen(error_message));continue;};
+                        }
+                        int secondson=fork();
+                        if(secondson==-1)
+                        {write(STDERR_FILENO, error_message, strlen(error_message));continue;};
+                        if(secondson==0)
+                        {
+                            if(-1==dup2(pipedes[0],STDIN_FILENO))
+                            {write(STDERR_FILENO, error_message, strlen(error_message));continue;};
+                            close(pipedes[0]);
+                            close(pipedes[1]);//////////correct all
+                            if(-1==execvp(curcommand2[0],curcommand2))
+                            {write(STDERR_FILENO, error_message, strlen(error_message));continue;};
+                        }
+                        //parent process do something
+                        close(pipedes[0]);
+                        close(pipedes[1]);
+                        while((reid=waitpid(-1,&status,0))>0)
+                        {
+                            if(reid==secondson)
+                                {
+                                    if(WIFEXITED(status))//second son has exited normally, first should also exited
+                                        break;
+                                }
+                        }
+                        if(reid==-1)
+                        {write(STDERR_FILENO, error_message, strlen(error_message));continue;};
+
+                    } 
                     // no redirection,just execute,possible & not handled
-                    if(reout==-1&&rein==-1)
+                    else if(reout==-1&&rein==-1)
                     {
                       fflush(stdout);
                       int status;
@@ -139,8 +210,8 @@ int main(int argc,char* argv[])
                           }
                       }
                       else
-                      {
-                        if(waitpid(childid,&status,WUNTRACED)==-1)
+                      { //-1 wait for any child process,now wait for certain childid
+                        if(waitpid(childid,&status,0)==-1)
                         {write(STDERR_FILENO, error_message, strlen(error_message));continue;}
                       }
                     } 
@@ -148,7 +219,7 @@ int main(int argc,char* argv[])
                     else if(reout==-1&&rein!=-1)
                     {
                         if(rein==argu-1||infilenum!=1) //file numbers >1/or file come in
-                        {write(STDERR_FILENO,error_message,sizeof(error_message));continue;}
+                        {write(STDERR_FILENO,error_message,sizeof(error_message));exit(0);}
                         char* curcommand[100];
                         int index=0;//concatanate current command
                         while(index<100&&index<rein)
@@ -182,7 +253,7 @@ int main(int argc,char* argv[])
                         }
                         else
                         {
-                          if(waitpid(childid,&status,WUNTRACED)==-1)
+                          if(waitpid(childid,&status,0)==-1)
                           {write(STDERR_FILENO, error_message, strlen(error_message));continue;}
                         }
                         
@@ -191,7 +262,7 @@ int main(int argc,char* argv[])
                     else if(reout!=-1&&rein==-1)
                     {
                         if(reout==argu-1||outfilenum!=1)//arguments num incorrect
-                        {write(STDERR_FILENO,error_message,sizeof(error_message));continue;}
+                        {write(STDERR_FILENO,error_message,sizeof(error_message));exit(0);}
                         char* curcommand[100];
                         int index=0;
                         while(index<reout)
@@ -226,7 +297,7 @@ int main(int argc,char* argv[])
                         }
                         else
                         {
-                          if(waitpid(childid,&status,WUNTRACED)==-1)
+                          if(waitpid(childid,&status,0)==-1)
                           {write(STDERR_FILENO, error_message, strlen(error_message));continue;}
                         }
                     }
@@ -235,7 +306,7 @@ int main(int argc,char* argv[])
                     {
                       
                       if(reout==argu-1||rein==argu-1||outfilenum>1||infilenum>1)
-                      {write(STDERR_FILENO,error_message,sizeof(error_message));continue;}
+                      {write(STDERR_FILENO,error_message,sizeof(error_message));exit(0);}
                       char* curcommand[100];
                       int index=0;
                       while(index<reout&&index<rein)
@@ -267,10 +338,12 @@ int main(int argc,char* argv[])
                       }
                       else
                       {
-                        if(waitpid(childid,&status,WUNTRACED)==-1)
+                        if(waitpid(childid,&status,0)==-1)
                         {write(STDERR_FILENO, error_message, strlen(error_message));continue;}
                       }
                     }
+                    //deal with pipeline
+                    
                     
 
                 }
