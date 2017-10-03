@@ -83,7 +83,11 @@ int main(int argc,char* argv[])
                             write(STDERR_FILENO, error_message, strlen(error_message));
                             continue;
                         }
+<<<<<<< HEAD
                         if(chdir(homepath)==0) {continue;}//success cd into home
+=======
+                        if(chdir(homepath)==0) continue;//success cd into home
+>>>>>>> af5751ce1ecdd23c252a5e242ba2932d6fa1b45b
                         else{write(STDERR_FILENO, error_message, strlen(error_message));continue;}
                     }
                     else
@@ -104,6 +108,7 @@ int main(int argc,char* argv[])
                 //deal with exit
                 }
                 else if(strcmp(command[0],"exit")==0)
+<<<<<<< HEAD
                 {       
                     int l=0;
                     int returnsig;
@@ -114,6 +119,11 @@ int main(int argc,char* argv[])
                         l++;
                     }
                     exit(0);      
+=======
+                {
+                    
+                    exit(0);
+>>>>>>> af5751ce1ecdd23c252a5e242ba2932d6fa1b45b
                 }
                 else
                 {
@@ -155,6 +165,7 @@ int main(int argc,char* argv[])
                     }
                     if(reout==0||rein==0) {linehist--;continue;} //no command after remove,</> is the first one
                     if(pipepos!=-1)
+<<<<<<< HEAD
                     {
                         if(pipepos==0||pipepos==argu-1)//no command before | or after |
                         {write(STDERR_FILENO, error_message, strlen(error_message));continue;}
@@ -165,6 +176,106 @@ int main(int argc,char* argv[])
                         char* curcommand1[100];
                         char* curcommand2[100];
                         while(index<pipepos)
+=======
+                    {
+                        if(pipepos==0||pipepos==argu-1)//no command before | or after |
+                        {write(STDERR_FILENO, error_message, strlen(error_message));continue;}
+                        //extract 2 commands respectively
+                        int index=0,index2=0;
+                        int status;
+                        int reid;
+                        char* curcommand1[100];
+                        char* curcommand2[100];
+                        while(index<pipepos)
+                        {
+                            curcommand1[index]=strdup(command[index]);
+                            index++;
+                        }
+                        curcommand1[index]=NULL;
+                        index=pipepos+1;
+                        while(index<argu)
+                        {
+                            curcommand2[index2]=strdup(command[index]);
+                            index++;
+                            index2++;
+                        }
+                        curcommand2[index2]=NULL;
+                        //connect pipe descriptor
+                        int pipedes[2];
+                        if(-1==pipe(pipedes))
+                        {write(STDERR_FILENO, error_message, strlen(error_message));continue;};
+                        fflush(stdout);
+                        int firstson=fork();
+                        if(firstson==-1)
+                        {write(STDERR_FILENO, error_message, strlen(error_message));continue;};
+                        if(firstson==0)
+                        {   
+                            if(-1==dup2(pipedes[1],STDOUT_FILENO))
+                            {write(STDERR_FILENO, error_message, strlen(error_message));continue;};
+                            close(pipedes[1]);//////////correct all
+                            close(pipedes[0]);
+                            if(-1==execvp(curcommand1[0],curcommand1))
+                            {write(STDERR_FILENO, error_message, strlen(error_message));continue;};
+                        }
+                        int secondson=fork();
+                        if(secondson==-1)
+                        {write(STDERR_FILENO, error_message, strlen(error_message));continue;};
+                        if(secondson==0)
+                        {
+                            if(-1==dup2(pipedes[0],STDIN_FILENO))
+                            {write(STDERR_FILENO, error_message, strlen(error_message));continue;};
+                            close(pipedes[0]);
+                            close(pipedes[1]);//////////correct all
+                            if(-1==execvp(curcommand2[0],curcommand2))
+                            {write(STDERR_FILENO, error_message, strlen(error_message));continue;};
+                        }
+                        //parent process do something
+                        close(pipedes[0]);
+                        close(pipedes[1]);
+                        while((reid=waitpid(-1,&status,0))>0)
+                        {
+                            if(reid==secondson)
+                                {
+                                    if(WIFEXITED(status))//second son has exited normally, first should also exited
+                                        break;
+                                }
+                        }
+                        if(reid==-1)
+                        {write(STDERR_FILENO, error_message, strlen(error_message));continue;};
+
+                    } 
+                    // no redirection,just execute,possible & not handled
+                    else if(reout==-1&&rein==-1)
+                    {
+                      fflush(stdout);
+                      int status;
+                      int childid=fork();
+                      //child process
+                      if(childid==-1)
+                      {write(STDERR_FILENO, error_message, strlen(error_message));continue;}
+                      if(childid==0)
+                      {
+                          if(execvp(command[0],command)==-1)//detect the command can be executed
+                          {
+                            write(STDERR_FILENO, error_message, strlen(error_message));
+                            continue;
+                          }
+                      }
+                      else
+                      { //-1 wait for any child process,now wait for certain childid
+                        if(waitpid(childid,&status,0)==-1)
+                        {write(STDERR_FILENO, error_message, strlen(error_message));continue;}
+                      }
+                    } 
+                    //exists redirection in,no out redirection
+                    else if(reout==-1&&rein!=-1)
+                    {
+                        if(rein==argu-1||infilenum!=1) //file numbers >1/or file come in
+                        {write(STDERR_FILENO,error_message,sizeof(error_message));exit(0);}
+                        char* curcommand[100];
+                        int index=0;//concatanate current command
+                        while(index<100&&index<rein)
+>>>>>>> af5751ce1ecdd23c252a5e242ba2932d6fa1b45b
                         {
                             curcommand1[index]=strdup(command[index]);
                             index++;
@@ -322,6 +433,7 @@ int main(int argc,char* argv[])
                         }
                         else
                         {
+<<<<<<< HEAD
                             if(rein==argu-1||infilenum!=1) //file numbers >1/or file come in
                             {write(STDERR_FILENO,error_message,sizeof(error_message));exit(0);}
                             char* curcommand[100];
@@ -358,13 +470,36 @@ int main(int argc,char* argv[])
                                 }
                             }
                             for(int d=0;d<index;d++)free(curcommand[d]);
+=======
+                          if(waitpid(childid,&status,0)==-1)
+                          {write(STDERR_FILENO, error_message, strlen(error_message));continue;}
+>>>>>>> af5751ce1ecdd23c252a5e242ba2932d6fa1b45b
                         }
                         
                     }
                     //exists redirection out,no in
                     else if(reout!=-1&&rein==-1)
                     {
+<<<<<<< HEAD
                         if(back==-1)
+=======
+                        if(reout==argu-1||outfilenum!=1)//arguments num incorrect
+                        {write(STDERR_FILENO,error_message,sizeof(error_message));exit(0);}
+                        char* curcommand[100];
+                        int index=0;
+                        while(index<reout)
+                        {
+                            curcommand[index]=strdup(command[index]);
+                            //printf("%s\n",curcommand[index]);
+                            index++;    
+                        }
+                        curcommand[index]=NULL;
+                        fflush(stdout);
+                        int status;
+                        int childid=fork();          
+                        //child process
+                        if(childid==-1)
+>>>>>>> af5751ce1ecdd23c252a5e242ba2932d6fa1b45b
                         {
                             if(reout==argu-1||outfilenum!=1)//arguments num incorrect
                             {write(STDERR_FILENO,error_message,sizeof(error_message));exit(0);}
@@ -409,6 +544,7 @@ int main(int argc,char* argv[])
                         }
                         else
                         {
+<<<<<<< HEAD
                             if(reout==argu-1||outfilenum!=1)//arguments num incorrect
                             {write(STDERR_FILENO,error_message,sizeof(error_message));exit(0);}
                             char* curcommand[100];
@@ -444,6 +580,10 @@ int main(int argc,char* argv[])
                                 }
                             }
                             for(int d=0;d<index;d++)free(curcommand[d]);
+=======
+                          if(waitpid(childid,&status,0)==-1)
+                          {write(STDERR_FILENO, error_message, strlen(error_message));continue;}
+>>>>>>> af5751ce1ecdd23c252a5e242ba2932d6fa1b45b
                         }
                     }
                     //both redirection out && redirection in
@@ -527,7 +667,48 @@ int main(int argc,char* argv[])
                             for(int d=0;d<index;d++)free(curcommand[d]);
                         }
                       
+<<<<<<< HEAD
+=======
+                      if(reout==argu-1||rein==argu-1||outfilenum>1||infilenum>1)
+                      {write(STDERR_FILENO,error_message,sizeof(error_message));exit(0);}
+                      char* curcommand[100];
+                      int index=0;
+                      while(index<reout&&index<rein)
+                      {
+                          curcommand[index]=strdup(command[index]);
+                          //printf("%s\n",curcommand[index]);
+                          index++;
+                      }
+                      curcommand[index]=NULL;
+                      fflush(stdout);
+                      int status;
+                      int childid=fork();
+                      //child process
+                      if(childid==0)
+                      {
+                          int fdout=open(command[reout+1],O_WRONLY|O_CREAT|O_TRUNC,00744);
+                          int fdin=open(command[rein+1],O_RDONLY);
+                          if(fdout==-1||fdin==-1)
+                          {write(STDERR_FILENO, error_message, strlen(error_message));continue;} 
+                          if(dup2(fdout,STDOUT_FILENO)==-1||dup2(fdin,STDIN_FILENO)==-1)
+                          {write(STDERR_FILENO, error_message, strlen(error_message));continue;}
+                          close(fdout);
+                          close(fdin);
+                          if(execvp(curcommand[0],curcommand)==-1)
+                          {
+                                write(STDERR_FILENO, error_message, strlen(error_message));
+                                continue;                        
+                          }
+                      }
+                      else
+                      {
+                        if(waitpid(childid,&status,0)==-1)
+                        {write(STDERR_FILENO, error_message, strlen(error_message));continue;}
+                      }
+>>>>>>> af5751ce1ecdd23c252a5e242ba2932d6fa1b45b
                     }
+                    //deal with pipeline
+                    
                     
                 }
                 for(int p=0;p<argu;p++) free(command[p]);
