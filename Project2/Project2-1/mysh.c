@@ -17,6 +17,12 @@ int main(int argc,char* argv[])
     int m=0;
     while(m<20)processtable[m++]=1;
     int linehist=1;
+    //badarg test..
+    if(argc!=1)
+    {
+        write(STDERR_FILENO, error_message, strlen(error_message));
+        exit(1);
+    }
     while(1)
     {
         //scan the process table so that no tombie process
@@ -39,10 +45,9 @@ int main(int argc,char* argv[])
         printf("mysh (%d)> ",linehist);
         linehist++;
         fflush(stdout);
-        char input[128];
-        input[sizeof input - 1] = '1';//set last character to non '\0
+        char input[1024];
         //no characters are founded or end of file occurs
-        if(fgets(input,128,stdin)==NULL)
+        if(fgets(input,1024,stdin)==NULL)
         {
             write(STDERR_FILENO, error_message, strlen(error_message));
             exit(1);
@@ -50,7 +55,14 @@ int main(int argc,char* argv[])
         else
         {
             //detect the input line length exceeds 128 bytes
+            /*
             if (input[sizeof input - 1] == '\0' && input[sizeof input - 2] != '\n')
+            {
+                write(STDERR_FILENO, error_message, strlen(error_message));
+                continue;
+            }
+            */
+            if(strlen(input)>128)
             {
                 write(STDERR_FILENO, error_message, strlen(error_message));
                 continue;
@@ -283,7 +295,7 @@ int main(int argc,char* argv[])
                         {
                             fflush(stdout);
                             if(rein==argu-1||infilenum!=1) //file numbers >1/or file come in
-                            {write(STDERR_FILENO,error_message,sizeof(error_message));continue;}
+                            {write(STDERR_FILENO,error_message,strlen(error_message));continue;}
                             char* curcommand[100];
                             int index=0;//concatanate current command
                             while(index<100&&index<rein)
@@ -326,7 +338,7 @@ int main(int argc,char* argv[])
                         {
                             fflush(stdout);
                             if(rein==argu-1||infilenum!=1) //file numbers >1/or file come in
-                            {write(STDERR_FILENO,error_message,sizeof(error_message));continue;}
+                            {write(STDERR_FILENO,error_message,strlen(error_message));continue;}
                             char* curcommand[100];
                             int index=0;//concatanate current command
                             while(index<100&&index<rein)
@@ -371,7 +383,7 @@ int main(int argc,char* argv[])
                         {
                             fflush(stdout);
                             if(reout==argu-1||outfilenum!=1)//arguments num incorrect
-                            {write(STDERR_FILENO,error_message,sizeof(error_message));continue;}
+                            {write(STDERR_FILENO,error_message,strlen(error_message));continue;}
                             char* curcommand[100];
                             int index=0;
                             while(index<reout)
@@ -415,7 +427,7 @@ int main(int argc,char* argv[])
                         {
                             fflush(stdout);
                             if(reout==argu-1||outfilenum!=1)//arguments num incorrect
-                            {write(STDERR_FILENO,error_message,sizeof(error_message));continue;}
+                            {write(STDERR_FILENO,error_message,strlen(error_message));continue;}
                             char* curcommand[100];
                             int index=0;
                             while(index<reout)
@@ -458,7 +470,7 @@ int main(int argc,char* argv[])
                         {
                             fflush(stdout);
                             if(reout==argu-1||rein==argu-1||outfilenum>1||infilenum>1)
-                            {write(STDERR_FILENO,error_message,sizeof(error_message));continue;}
+                            {write(STDERR_FILENO,error_message,strlen(error_message));continue;}
                             char* curcommand[100];
                             int index=0;
                             while(index<reout&&index<rein)
@@ -499,7 +511,7 @@ int main(int argc,char* argv[])
                         {  //deal with background execution
                             fflush(stdout);
                             if(reout==argu-1||rein==argu-1||outfilenum>1||infilenum>1)
-                            {write(STDERR_FILENO,error_message,sizeof(error_message));exit(0);}
+                            {write(STDERR_FILENO,error_message,strlen(error_message));exit(0);}
                             char* curcommand[100];
                             int index=0;
                             while(index<reout&&index<rein)
