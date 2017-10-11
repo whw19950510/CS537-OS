@@ -55,13 +55,6 @@ int main(int argc,char* argv[])
         else
         {
             //detect the input line length exceeds 128 bytes
-            /*
-            if (input[sizeof input - 1] == '\0' && input[sizeof input - 2] != '\n')
-            {
-                write(STDERR_FILENO, error_message, strlen(error_message));
-                continue;
-            }
-            */
             if(strlen(input)>128)
             {
                 write(STDERR_FILENO, error_message, strlen(error_message));
@@ -197,32 +190,42 @@ int main(int argc,char* argv[])
                         //connect pipe descriptor
                         int pipedes[2];
                         if(-1==pipe(pipedes))
-                        {write(STDERR_FILENO, error_message, strlen(error_message));continue;};
+                        {write(STDERR_FILENO, error_message, strlen(error_message));continue;}
                         fflush(stdout);
                         int firstson=fork();
                         if(firstson==-1)
-                        {write(STDERR_FILENO, error_message, strlen(error_message));continue;};
+                        {write(STDERR_FILENO, error_message, strlen(error_message));continue;}
                         if(firstson==0)
                         {   
                             if(-1==dup2(pipedes[1],STDOUT_FILENO))
-                            {write(STDERR_FILENO, error_message, strlen(error_message));exit(0);};
+                            {write(STDERR_FILENO, error_message, strlen(error_message));exit(0);}
                             close(pipedes[1]);//////////correct all
                             close(pipedes[0]);
                             if(-1==execvp(curcommand1[0],curcommand1))
-                            {write(STDERR_FILENO, error_message, strlen(error_message));exit(0);};
+                            {   
+                                for(int d=0;d<curcommand1len;d++)free(curcommand1[d]);
+                                for(int d=0;d<curcommand2len;d++)free(curcommand2[d]);
+                                write(STDERR_FILENO, error_message, strlen(error_message));
+                                exit(0);
+                            }
                         }
                         fflush(stdout);
                         int secondson=fork();
                         if(secondson==-1)
-                        {write(STDERR_FILENO, error_message, strlen(error_message));continue;};
+                        {write(STDERR_FILENO, error_message, strlen(error_message));continue;}
                         if(secondson==0)
                         {
                             if(-1==dup2(pipedes[0],STDIN_FILENO))
-                            {write(STDERR_FILENO, error_message, strlen(error_message));exit(0);};
+                            {write(STDERR_FILENO, error_message, strlen(error_message));exit(0);}
                             close(pipedes[0]);
                             close(pipedes[1]);//////////correct all
                             if(-1==execvp(curcommand2[0],curcommand2))
-                            {write(STDERR_FILENO, error_message, strlen(error_message));exit(0);};
+                            {
+                                for(int d=0;d<curcommand1len;d++)free(curcommand1[d]);
+                                for(int d=0;d<curcommand2len;d++)free(curcommand2[d]);
+                                write(STDERR_FILENO, error_message, strlen(error_message));
+                                exit(0);
+                            }
                         }
                         //parent process do something
                         close(pipedes[0]);
@@ -237,7 +240,7 @@ int main(int argc,char* argv[])
                                 }
                         }
                         if(reid==-1)
-                        {write(STDERR_FILENO, error_message, strlen(error_message));continue;};
+                        {write(STDERR_FILENO, error_message, strlen(error_message));continue;}
                         for(int d=0;d<curcommand1len;d++)free(curcommand1[d]);
                         for(int d=0;d<curcommand2len;d++)free(curcommand2[d]);
                     } 
@@ -257,6 +260,7 @@ int main(int argc,char* argv[])
                                 if(execvp(command[0],command)==-1)//detect the command can be executed
                                 {
                                   write(STDERR_FILENO, error_message, strlen(error_message));
+                                  for(int d=0;d<argu;d++)free(command[d]);
                                   exit(0);
                                 }
                             }
@@ -283,6 +287,7 @@ int main(int argc,char* argv[])
                                 if(execvp(command[0],command)==-1)//detect the command can be executed
                                 {
                                   write(STDERR_FILENO, error_message, strlen(error_message));
+                                  for(int d=0;d<argu;d++)free(command[d]);
                                   exit(0);
                                 }
                             }
