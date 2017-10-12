@@ -6,6 +6,10 @@
 #include "proc.h"
 #include "spinlock.h"
 #include "pstat.h"
+
+int clkPerPrio[4] ={1000,32,16,8};
+int clkWait[4] = {500, 320, 160, 0};
+
 struct {
   struct spinlock lock;
   struct proc proc[NPROC];
@@ -39,12 +43,34 @@ allocproc(void)
   for(p = ptable.proc; p < &ptable.proc[NPROC]; p++)
     if(p->state == UNUSED)
       goto found;
+  p->priority = 3;
+
+
+  p->ticks[0] = 0;
+  p->ticks[1] = 0;
+  p->ticks[2] = 0;
+  p->ticks[3] = 0;
+  p->wait_ticks[0] = 0;
+  p->wait_ticks[1] = 0;
+  p->wait_ticks[2] = 0;
+  p->wait_ticks[3] = 0;
+  
   release(&ptable.lock);
   return 0;
 
 found:
   p->state = EMBRYO;
   p->pid = nextpid++;
+  p->inuse=0;
+  p->priority = 3;
+  p->ticks[0] = 0;
+  p->ticks[1] = 0;
+  p->ticks[2] = 0;
+  p->ticks[3] = 0;
+  p->wait_ticks[0] = 0;
+  p->wait_ticks[1] = 0;
+  p->wait_ticks[2] = 0;
+  p->wait_ticks[3] = 0;
   release(&ptable.lock);
 
   // Allocate kernel stack if possible.
@@ -70,6 +96,7 @@ found:
 
   return p;
 }
+
 
 // Set up first user process.
 void
@@ -255,7 +282,9 @@ wait(void)
 void
 scheduler(void)
 {
-  struct proc *p;
+  struct proc *p = NULL;
+  struct proc *s = NULL;
+  int max_pri = 0;
 
   for(;;){
     // Enable interrupts on this processor.
@@ -263,27 +292,108 @@ scheduler(void)
 
     // Loop over process table looking for process to run.
     acquire(&ptable.lock);
-    for(p = ptable.proc; p < &ptable.proc[NPROC]; p++){
-      if(p->state != RUNNABLE)
-        continue;
+    max_pri = 0;
+    for (p = ptable.proc; p < &ptable.proc[NPROC]; p++) {
+    	if (p->state != RUNNABLE)
+        	continue;
+        if (p->priority > max_pri) {
+        	max_pri = p->priority;
+        }
+    }
+    for (p = ptable.proc; p < &ptable.proc[NPROC]; p++) {
+    	if (p->state != RUNNABLE)
+        	continue;
+      if (p->priority == max_pri) {
+        if (p->priority > 0) {
+          if(p->ticks[p->priority]==clkPerPrio[p->priority]) {
+            p->ticks[p->priority]=0;
+          }
+          for (int cou = p->ticks[p->priority]; cou < clkPerPrio[p->priority]; cou++) {
+            if (p->state != RUNNABLE)
+              break;
+	    	// deal with upgrade
+	    	// pstat_var.inuse[p->pid] = 1;
+    	    	proc = p;
+    	    	p->wait_ticks[p->priority] = -1;
+    	    	for (s = ptable.proc; s < &ptable.proc[NPROC]; s++) {
+    	    		s->wait_ticks[s->priority]++;
+    	    		if (s->priority < 3 && s->wait_ticks[s->priority] >= clkWait[s->priority]) {
+                s->priority++;
+                s->wait_ticks[s->priority] = 0;
+    	    		}
+            }
+            
+
+    	    	p->ticks[p->priority]++;   
+              // round robin			 
+            p->inuse=1;
+  			    switchuvm(p);
+  			    p->state = RUNNING;
+  			    swtch(&cpu->scheduler, proc->context);
+            switchkvm();
+            if (p->priority > 0 && p->ticks[p->priority] >= clkPerPrio[p->priority]) {
+              p->priority = p->priority-1;
+              p->ticks[p->priority] = 0;
+            }
+            }			
+          } else if (p->priority == 0) {
+            if (p->state != RUNNABLE)
+              break;
+            proc = p;
+            p->wait_ticks[p->priority] = -1;
+            for (s = ptable.proc; s < &ptable.proc[NPROC]; s++) {
+              s->wait_ticks[s->priority]++;
+              if (s->priority < 3 && s->wait_ticks[s->priority] >= clkWait[s->priority]) {
+                s->priority++;
+                s->wait_ticks[s->priority] = 0;
+              }
+            }
+            p->ticks[p->priority]++;
+              // round robin
+            p->inuse=1;       
+            switchuvm(p);
+            p->state = RUNNING;
+            swtch(&cpu->scheduler, proc->context);
+            switchkvm();
+			}
+		    proc = 0;
+		}
 
       // Switch to chosen process.  It is the process's job
       // to release ptable.lock and then reacquire it
       // before jumping back to us.
-      proc = p;
-      switchuvm(p);
-      p->state = RUNNING;
-      swtch(&cpu->scheduler, proc->context);
-      switchkvm();
-
-      // Process is done running for now.
-      // It should have changed its p->state before coming back.
-      proc = 0;
     }
     release(&ptable.lock);
 
   }
 }
+
+void helper(struct pstat *pstat_var)
+{
+  struct proc *p;
+  int i=0;
+  // acquire(&ptable.lock);
+  for (p = ptable.proc; p < &ptable.proc[NPROC]; p++) {
+    if(p==NULL) {
+      continue;
+    }
+    pstat_var->priority[i] = p->priority;
+    pstat_var->ticks[i][0] = p->ticks[0];
+    pstat_var->ticks[i][1] = p->ticks[1];
+    pstat_var->ticks[i][2] = p->ticks[2];
+    pstat_var->ticks[i][3] = p->ticks[3];
+    pstat_var->pid[i] = p->pid;
+    pstat_var->wait_ticks[i][0] = p->wait_ticks[0];
+    pstat_var->wait_ticks[i][1] = p->wait_ticks[1];
+    pstat_var->wait_ticks[i][2] = p->wait_ticks[2];
+    pstat_var->wait_ticks[i][3] = p->wait_ticks[3];
+    pstat_var->state[i] = p->state;
+    pstat_var->inuse[i] = p->inuse;
+    i++;
+  }
+  // release(&ptable.lock);
+}
+
 
 // Enter scheduler.  Must hold only ptable.lock
 // and have changed proc->state.
@@ -365,6 +475,7 @@ sleep(void *chan, struct spinlock *lk)
 
 // Wake up all processes sleeping on chan.
 // The ptable lock must be held.
+
 static void
 wakeup1(void *chan)
 {
@@ -374,7 +485,7 @@ wakeup1(void *chan)
     if(p->state == SLEEPING && p->chan == chan)
       p->state = RUNNABLE;
 }
-
+  
 // Wake up all processes sleeping on chan.
 void
 wakeup(void *chan)

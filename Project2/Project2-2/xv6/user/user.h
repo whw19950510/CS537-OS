@@ -1,8 +1,9 @@
 #ifndef _USER_H_
 #define _USER_H_
 
+enum procstate { UNUSED, EMBRYO, SLEEPING, RUNNABLE, RUNNING, ZOMBIE };
 struct stat;
-
+struct pstat;
 // system calls
 int fork(void);
 int exit(void) __attribute__((noreturn));

@@ -8,8 +8,8 @@ struct pstat {
   int pid[NPROC];   // PID of each process
   int priority[NPROC];  // current priority level of each process (0-3)
   enum procstate state[NPROC];  // current state (e.g., SLEEPING or RUNNABLE) of each process
-  int ticks[NPROC][NLAYER];  // number of ticks each process has accumulated at each of 4 priorities
-  int wait_ticks[NPROC][NLAYER]; // number of ticks each process has waited before being scheduled
+  int ticks[NPROC][4];  // number of ticks each process has accumulated at each of 4 priorities
+  int wait_ticks[NPROC][4]; // number of ticks each process has waited before being scheduled
 };
 
 #endif // _PSTAT_H_

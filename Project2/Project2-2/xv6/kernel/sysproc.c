@@ -88,6 +88,7 @@ sys_uptime(void)
   release(&tickslock);
   return xticks;
 }
+
 //return 0 on success -1 on failure,
 //Because your MLFQ implementations are all in the kernel level, 
 //you need to extract useful information for each process by creating 
@@ -101,19 +102,11 @@ sys_uptime(void)
 //its current procstate (e.g., SLEEPING, RUNNABLE, or RUNNING) will be filled 
 //in the pstat structure as defined 
 int 
-getpinfo(struct pstat*)
+sys_getpinfo(void)
 {
-  int pid;
-  if(argint(0,&pid)<0)
+  struct pstat* cur;
+  if(argptr(0, (void*)(&cur),sizeof(cur)) < 0)
     return -1;
-  struct proc* p;
-  for(p = ptable.proc; p < &ptable.proc[NPROC]; p++){
-    pstat->inuse[p]=p->usestate;
-    pstat->pid[p]=p->pid;
-    pstat->priority[p]=p->priority;
-    pstat->state[p]=p->state;
-  }
-  
-
+  helper(cur);
   return 0;
 }
