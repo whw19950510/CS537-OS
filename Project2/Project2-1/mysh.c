@@ -88,12 +88,12 @@ int main(int argc,char* argv[])
                             write(STDERR_FILENO, error_message, strlen(error_message));
                             continue;
                         }
-                        if(chdir(homepath)==0) {continue;}//success cd into home
+                        if(chdir(homepath)==0) {for(int p=0;p<argu;p++) {free(command[p]);command[p]=NULL;} continue;}//success cd into home
                         else{write(STDERR_FILENO, error_message, strlen(error_message));continue;}
                     }
                     else
                     {
-                        if(chdir(command[1])==0) continue;//success cd into some path
+                        if(chdir(command[1])==0) {for(int p=0;p<argu;p++) {free(command[p]);command[p]=NULL;} continue;}//success cd into some path
                         else{write(STDERR_FILENO, error_message, strlen(error_message));continue;}
                     }
                 //deal with pwd
@@ -106,6 +106,12 @@ int main(int argc,char* argv[])
                     if(getcwd(bufferpath,sizeof(bufferpath))==NULL)
                     {write(STDERR_FILENO, error_message, strlen(error_message));continue;}
                     printf("%s\n",bufferpath);
+                    for(int p=0;p<argu;p++)
+                    {
+                        free(command[p]);
+                        command[p]=NULL;
+                    }
+                    continue;
                 //deal with exit
                 }
                 else if(strcmp(command[0],"exit")==0)
@@ -117,6 +123,11 @@ int main(int argc,char* argv[])
                         if((returnsig=kill(processtable[l],0))==0)
                             kill(processtable[l],SIGTERM);
                         l++;
+                    }
+                    for(int p=0;p<argu;p++)
+                    {
+                        free(command[p]);
+                        command[p]=NULL;
                     }
                     exit(0);      
                 }
@@ -203,8 +214,8 @@ int main(int argc,char* argv[])
                             close(pipedes[0]);
                             if(-1==execvp(curcommand1[0],curcommand1))
                             {   
-                                for(int d=0;d<curcommand1len;d++)free(curcommand1[d]);
-                                for(int d=0;d<curcommand2len;d++)free(curcommand2[d]);
+                                for(int d=0;d<curcommand1len;d++){ free(curcommand1[d]); curcommand1[d]=NULL;}
+                                for(int d=0;d<curcommand2len;d++){ free(curcommand2[d]); curcommand2[d]=NULL;}
                                 write(STDERR_FILENO, error_message, strlen(error_message));
                                 exit(0);
                             }
@@ -221,8 +232,8 @@ int main(int argc,char* argv[])
                             close(pipedes[1]);//////////correct all
                             if(-1==execvp(curcommand2[0],curcommand2))
                             {
-                                for(int d=0;d<curcommand1len;d++)free(curcommand1[d]);
-                                for(int d=0;d<curcommand2len;d++)free(curcommand2[d]);
+                                for(int d=0;d<curcommand1len;d++){ free(curcommand1[d]); curcommand1[d]=NULL;}
+                                for(int d=0;d<curcommand2len;d++){ free(curcommand2[d]); curcommand2[d]=NULL;}
                                 write(STDERR_FILENO, error_message, strlen(error_message));
                                 exit(0);
                             }
@@ -241,14 +252,14 @@ int main(int argc,char* argv[])
                         }
                         if(reid==-1)
                         {write(STDERR_FILENO, error_message, strlen(error_message));continue;}
-                        for(int d=0;d<curcommand1len;d++)free(curcommand1[d]);
-                        for(int d=0;d<curcommand2len;d++)free(curcommand2[d]);
+                        for(int d=0;d<curcommand1len;d++){ free(curcommand1[d]); curcommand1[d]=NULL;}
+                        for(int d=0;d<curcommand2len;d++){ free(curcommand2[d]); curcommand2[d]=NULL;}
                     } 
-                    // no redirection
+                    // no redirection,simple execution
                     else if(reout==-1&&rein==-1)
                     {
                         if(back==-1)
-                        {
+                        {//no background execution
                             fflush(stdout);
                             int status;
                             int childid=fork();
@@ -260,7 +271,7 @@ int main(int argc,char* argv[])
                                 if(execvp(command[0],command)==-1)//detect the command can be executed
                                 {
                                   write(STDERR_FILENO, error_message, strlen(error_message));
-                                  for(int d=0;d<argu;d++)free(command[d]);
+                                  for(int d=0;d<argu;d++){ free(command[d]); command[d]=NULL;}
                                   exit(0);
                                 }
                             }
@@ -275,6 +286,7 @@ int main(int argc,char* argv[])
                             fflush(stdout);
                             int status;
                             argu--;//remove the last & character
+                            free(command[argu]);//free the last character
                             command[argu]=NULL;
                             int childid=fork();
                             //child process
@@ -287,7 +299,7 @@ int main(int argc,char* argv[])
                                 if(execvp(command[0],command)==-1)//detect the command can be executed
                                 {
                                   write(STDERR_FILENO, error_message, strlen(error_message));
-                                  for(int d=0;d<argu;d++)free(command[d]);
+                                  for(int d=0;d<argu;d++) {free(command[d]);command[d]=NULL;}
                                   exit(0);
                                 }
                             }
@@ -548,13 +560,17 @@ int main(int argc,char* argv[])
                                     exit(0);                        
                                 }
                             }
-                            for(int d=0;d<index;d++)free(curcommand[d]);
+                            for(int d=0;d<index;d++) {free(curcommand[d]);curcommand[d]=NULL;}
                         }
                       
                     }
                     
                 }
-                for(int p=0;p<argu;p++) free(command[p]);
+                for(int p=0;p<argu;p++)
+                {
+                    free(command[p]);
+                    command[p]=NULL;
+                }
             }
         }
     }
