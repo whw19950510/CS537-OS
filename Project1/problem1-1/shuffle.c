@@ -58,8 +58,6 @@ int main(int argc,char*argv[])
 		fprintf(stderr,"Error: Cannot open file %s\n",inputfile);
 		exit(1);
 	}
-	//printf("%s\n",inputfile);
-	//printf("%s\n",outputfile);
 	//calculate the total size of the input file
 	struct stat container;
 	if(stat(inputfile,&container) == -1)
@@ -67,7 +65,13 @@ int main(int argc,char*argv[])
 		fprintf(stderr,"Error stat\n");
 		exit(1);
 	}
-	//printf("%d\n",(int)container.st_size);
+	/*
+	if(container.st_size==0)
+	{
+		fprintf(stderr,"Empty File\n");
+		exit(1);
+	}
+	*/
 	//read into a total pointer named readtotal
 	char *readtotal = malloc(container.st_size);
 	if(readtotal == NULL)
@@ -76,21 +80,21 @@ int main(int argc,char*argv[])
 		exit(1);
 	}
 	int fr = fread(readtotal,container.st_size,1,inputpointer);
-	if(ferror(inputpointer)>0||fr==0)
+	if(ferror(inputpointer)>0)
 	{
-		fprintf(stderr,"Error read\n");
-		clearerr(inputpointer);
+		fprintf(stderr,"Error: Cannot open file %s\n",inputfile);
+		//clearerr(inputpointer);
 		exit(1);
 	}
-	if(feof(inputpointer)>0||fr==0)
+	if(feof(inputpointer)>0)
 	{
-		clearerr(inputpointer);
+		//clearerr(inputpointer);
 		fclose(inputpointer);
 	}
-	//printf("%c\n",readtotal[strlen(readtotal)-2]);
 ////////////////////////////////////////////////////////
 //shuffle and output to the file
 //change turns around
+//open files for writing && open again for appending
 	char* change = malloc(512);
 	int turn = 1;
 	int i = 0,j = strlen(readtotal)-1;
@@ -131,6 +135,7 @@ int main(int argc,char*argv[])
 			turn = turn*(-1);
 
 		}
+		//shuffle around
 		else if(turn == -1)
 		{
 			curcount = j-1;
@@ -152,6 +157,7 @@ int main(int argc,char*argv[])
 			turn = turn*(-1);
 		}
 	}
+//free memory && close file
 	free(change);
 	free(readtotal);
 	fclose(outputpointer);
