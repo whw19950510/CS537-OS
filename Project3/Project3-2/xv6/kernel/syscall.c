@@ -17,7 +17,7 @@
 int
 fetchint(struct proc *p, uint addr, int *ip)
 {
-  if(addr >= p->sz || addr+4 > p->sz||addr==0)//when pass argument to kernel,make sure non-null pointer
+  if(addr >= p->sz || addr+4 > p->sz||addr==0)
     return -1;
   *ip = *(int*)(addr);
   return 0;
@@ -55,7 +55,7 @@ int
 argptr(int n, char **pp, int size)
 {
   int i;
-  
+
   if(argint(n, &i) < 0)
     return -1;
   if((uint)i >= proc->sz || (uint)i+size > proc->sz|| (uint)i==0)
@@ -111,7 +111,7 @@ void
 syscall(void)
 {
   int num;
-  
+
   num = proc->tf->eax;
   if(num > 0 && num < NELEM(syscalls) && syscalls[num] != NULL) {
     proc->tf->eax = syscalls[num]();
