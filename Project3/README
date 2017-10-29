@@ -1,0 +1,3 @@
+1.For the shared memory part of 3-1, it's tricky to use the corresponding API to fulfill the communication between server and clients. 
+1)At first, we initialize all  pid=-1 in the shared memory, then client writes to respetive hole when scanning, however, the structs exceeds 64 bytes, and the memory begins to be inconsistent with server content, which prints out non -1 pid process, like 0 & some dirty number. After fix that, the client print correctly.
+2)To pass the many client tests, we should test whether there is hole in the shared memopry to write in. If not, just exit gracefully and remember to unlock..
