@@ -71,7 +71,6 @@ int main(int argc, char *argv[]) {
         if(-1==((stats_t*)(sharepointer+i*64))->pid) {
             ((stats_t*)(sharepointer+i*64))->pid=getpid();
             gettimeofday(&startTime,NULL);//get birth time
-            ((stats_t*)(sharepointer+i*64))->init=time(NULL); 
             strcpy(((stats_t*)(sharepointer+i*64))->clientString,argv[1]);
             time_t curt = time(NULL);    
             struct tm *timeptr = localtime(&curt);
@@ -82,6 +81,7 @@ int main(int argc, char *argv[]) {
     }
     if(find==0) {//no place for the client to write
         fprintf(stderr, "error happens");
+        pthread_mutex_unlock(mutex);
 		exit(0);
     }
     pthread_mutex_unlock(mutex);

@@ -38,6 +38,19 @@ int main(int argc, char *argv[])
 	int i;
 	char* SHM_NAME="huawei";
 	int iteration=0;
+	//override exit handler
+	struct sigaction newact;
+	newact.sa_handler=exit_handler;
+    if(sigaction(SIGINT, &newact,NULL)<0)
+    {
+        fprintf(stderr, "error happens");
+		exit(1);
+    }
+    if(sigaction(SIGTERM, &newact,NULL)<0)
+    {
+        fprintf(stderr, "error happens");
+		exit(1);
+    }
 	// Creating a new shared memory segment
 	int fd_shm = shm_open(SHM_NAME, O_RDWR | O_CREAT, 0660);	
 	pagesize=sysconf (_SC_PAGESIZE); 
@@ -57,19 +70,7 @@ int main(int argc, char *argv[])
 		fprintf( stderr, "error happens");
 		exit(1);
 	}
-	//override exit handler
-	struct sigaction newact;
-	newact.sa_handler=exit_handler;
-    if(sigaction(SIGINT, &newact,NULL)<0)
-    {
-        fprintf(stderr, "error happens");
-		exit(1);
-    }
-    if(sigaction(SIGTERM, &newact,NULL)<0)
-    {
-        fprintf(stderr, "error happens");
-		exit(1);
-    }
+	
 	int maxClient=pagesize/64-1;//each segment with 64 byte,one segment reserved for mutex
 	
 	// Initializing mutex
@@ -79,7 +80,6 @@ int main(int argc, char *argv[])
 	pthread_mutex_init(mutex, &mutexAttribute);
 	for(i=1;i<=maxClient;i++) {
 		((stats_t*)(mappointer+i*64))->pid=-1;
-		//printf("pid:%d index:%d\n",((stats_t*)mappointer)[i].pid,i);
 	}
     while (1) 
 	{
