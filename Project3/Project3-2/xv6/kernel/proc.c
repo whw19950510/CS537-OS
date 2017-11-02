@@ -126,11 +126,9 @@ int
 growstack(void)
 {
   uint newstack = rcr2();
-  newstack=(uint)PGROUNDDOWN(newstack);
-  if(newstack<0x2000||newstack<proc->sz||newstack>USERTOP) {//handle access to null space
+  if(newstack<0x2000||newstack>=USERTOP||newstack<(proc->stack_head)-PGSIZE||(newstack<(proc->sz)+5*PGSIZE&&newstack>proc->sz)) {//handle access to null space
     cprintf("access to 0x2000||USERTOP,needs to trap\n");
-    proc->killed = 1;
-    exit();
+    return -1;
   }
   if(proc->stack_head-proc->sz>5*PGSIZE) {
     cprintf("enough space for growing stack\n");
@@ -138,7 +136,7 @@ growstack(void)
     {
       cprintf("grow stack successfully\n");
       proc->stack_head=proc->stack_head-PGSIZE;
-      switchuvm(proc);
+      //switchuvm(proc);
       return 0;
     }
   } 

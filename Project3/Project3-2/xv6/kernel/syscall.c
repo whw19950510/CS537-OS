@@ -17,11 +17,10 @@
 int checkbounds(struct proc* p, int addr)
 {
   
-  if(addr>=USERTOP||addr+4>=USERTOP||addr<=2*PGSIZE||(addr+4)<=2*PGSIZE||((addr>p->sz)&&(addr<p->stack_head))||((addr+4>p->sz)&&(addr+4<p->stack_head)))
+  if(addr>=USERTOP||addr+4>USERTOP||addr<2*PGSIZE||(addr+4)<2*PGSIZE||((addr>=p->sz)&&(addr<p->stack_head))||((addr+4>p->sz)&&(addr+4<=p->stack_head)))
   return -1;
   else
   return 0;
-  
 }
 int
 fetchint(struct proc *p, uint addr, int *ip)
@@ -42,11 +41,19 @@ fetchstr(struct proc *p, uint addr, char **pp)
 
   if(checkbounds(p,addr)==-1)
     return -1;
-  *pp = (char*)addr;
-  ep = (char*)p->sz;
-  for(s = *pp; s < ep; s++)
-    if(*s == 0)
-      return s - *pp;
+  if(addr<=p->sz) {
+    *pp = (char*)addr;
+    ep = (char*)p->sz;
+    for(s = *pp; s < ep; s++)
+      if(*s == 0)
+        return s - *pp;
+  } else {
+    *pp = (char*)addr;
+    ep = (char*)USERTOP;
+    for(s = *pp; s < ep; s++)
+      if(*s == 0)
+        return s - *pp;
+  }
   return -1;
 }
 
@@ -64,11 +71,19 @@ int
 argptr(int n, char **pp, int size)
 {
   int i;
-
+  //cprintf("fetch parameter entered\n");
   if(argint(n, &i) < 0)
     return -1;
-  if((((uint)i >= proc->sz)&&((uint)i+size <= proc->stack_head)) || (((uint)i+size > proc->sz)&&((uint)i<proc->stack_head)))
+  if( ( (uint)i >= proc->sz && (uint)i < proc->stack_head) || ( (uint)i+size > proc->sz && (uint)i+size < proc->stack_head) )
     return -1;
+  // above user top
+  if( ( (uint)i >= proc->sz && (uint)i > USERTOP) || ( (uint)i+size > proc->sz && (uint)i+size > USERTOP) )
+    return -1;
+
+  if((uint)i>=0 && (uint)i<2*PGSIZE){
+    cprintf("in argptr. try to acess the first page. addr: %d\n",(uint)i);
+    return -1;
+  }
   *pp = (char*)i;
   return 0;
 }
@@ -80,6 +95,7 @@ argptr(int n, char **pp, int size)
 int
 argstr(int n, char **pp)
 {
+  //cprintf("fetch parameter entered\n");
   int addr;
   if(argint(n, &addr) < 0)
     return -1;

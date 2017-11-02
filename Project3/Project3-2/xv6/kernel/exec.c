@@ -88,7 +88,7 @@ exec(char *path, char **argv)
   oldpgdir = proc->pgdir;
   proc->pgdir = pgdir;
   proc->sz = sz;
-  proc->stackhead=USERTOP-PGSIZE;
+  proc->stack_head=USERTOP-PGSIZE;
   proc->tf->eip = elf.entry;  // main
   proc->tf->esp = sp;
   switchuvm(proc);

@@ -80,10 +80,10 @@ trap(struct trapframe *tf)
     if(0!=growstack())
     {
       cprintf("error allocating\n");
-      exit();
-    }
-    lapiceoi();
-    break;
+      proc->killed=1;
+      break;///
+    } else return;
+    //lapiceoi();
   }
   default:
     if(proc == 0 || (tf->cs&3) == 0){
