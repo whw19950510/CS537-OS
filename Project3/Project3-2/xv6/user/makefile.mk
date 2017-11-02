@@ -7,7 +7,6 @@ USER_PROGS := \
 	grep\
 	init\
 	kill\
-	null\
 	ln\
 	ls\
 	mkdir\
@@ -16,6 +15,7 @@ USER_PROGS := \
 	stressfs\
 	tester\
 	usertests\
+	null\
 	wc\
 	zombie
 
@@ -103,4 +103,3 @@ user/%.d: user/%.c
 user/%.d: user/%.S
 	$(CC) $(CPPFLAGS) $(USER_CPPFLAGS) $(ASFLAGS) $(USER_ASFLAGS) \
 		-M -MG $< -MF $@ -MT $@ -MT $(<:.S=.o)
-

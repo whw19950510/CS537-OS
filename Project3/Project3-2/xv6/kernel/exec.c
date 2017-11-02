@@ -12,6 +12,7 @@ exec(char *path, char **argv)
   char *s, *last;
   int i, off;
   uint argc, sz, sp, ustack[3+MAXARG+1];
+  uint stackaddr;//start of stack
   struct elfhdr elf;
   struct inode *ip;
   struct proghdr ph;
@@ -49,15 +50,15 @@ exec(char *path, char **argv)
   ip = 0;
 
   // Allocate a one-page stack at the next page boundary
-  sz = PGROUNDUP(sz);
+  //sz = PGROUNDUP(sz);//find the boundary
   /*
   if((sz = allocuvm(pgdir, sz, sz + PGSIZE)) == 0)
     goto bad;
   */
-  if((sz = allocuvm(pgdir, USERTOP, USERTOP-PGSIZE)) == 0)
-    goto bad;
+  if((stackaddr = allocuvm(pgdir, USERTOP-PGSIZE, USERTOP)) == 0)
+    panic("allocate new stack failed");
   // Push argument strings, prepare rest of stack in ustack.
-  sp = sz;
+  sp = stackaddr;
   for(argc = 0; argv[argc]; argc++) {
     if(argc >= MAXARG)
       goto bad;
@@ -87,6 +88,7 @@ exec(char *path, char **argv)
   oldpgdir = proc->pgdir;
   proc->pgdir = pgdir;
   proc->sz = sz;
+  proc->stackhead=USERTOP-PGSIZE;
   proc->tf->eip = elf.entry;  // main
   proc->tf->esp = sp;
   switchuvm(proc);
