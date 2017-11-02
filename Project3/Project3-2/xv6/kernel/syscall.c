@@ -16,10 +16,12 @@
 // Fetch the int at addr from process p.
 int checkbounds(struct proc* p, int addr)
 {
-  if(addr>USERTOP||addr+4>USERTOP||addr<2*PGSIZE||(addr+4)<2*PGSIZE||((addr>proc->sz)&&(addr<proc->stack_head))||((addr+4>proc->sz)&&(addr+4<proc->stack_head)))
+  
+  if(addr>=USERTOP||addr+4>=USERTOP||addr<=2*PGSIZE||(addr+4)<=2*PGSIZE||((addr>p->sz)&&(addr<p->stack_head))||((addr+4>p->sz)&&(addr+4<p->stack_head)))
   return -1;
   else
   return 0;
+  
 }
 int
 fetchint(struct proc *p, uint addr, int *ip)

@@ -1,3 +1,11 @@
 1.For the shared memory part of 3-1, it's tricky to use the corresponding API to fulfill the communication between server and clients. 
 1)At first, we initialize all  pid=-1 in the shared memory, then client writes to respetive hole when scanning, however, the structs exceeds 64 bytes, and the memory begins to be inconsistent with server content, which prints out non -1 pid process, like 0 & some dirty number. After fix that, the client print correctly.
 2)To pass the many client tests, we should test whether there is hole in the shared memopry to write in. If not, just exit gracefully and remember to unlock..
+
+
+2.Relocate the stack is kind of tricky work. To move coding segment above for 0x2000, just change the sz in exec.c and copyuvm to change the copy part of 
+child process. Also, the first process, which created by userinit() should also change the mapping range and eip-> to 0x2000, In addition, the executing extrance 
+should both be set to 0x2000, so that it enters here.
+The total executing process is that userinit(){which calls mappages}=>exec{first process}=>child fork{calls copyuvm}=>maybe trap=>
+when reference below 0x2000, should trap and exit, so be careful when you checkrange & grow stack, not all conditions should grow stacks.
+

@@ -78,7 +78,10 @@ trap(struct trapframe *tf)
   case T_PGFLT:
   {
     if(0!=growstack())
-    cprintf("error allocating\n");
+    {
+      cprintf("error allocating\n");
+      exit();
+    }
     lapiceoi();
     break;
   }

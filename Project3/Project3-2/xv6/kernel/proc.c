@@ -127,8 +127,8 @@ growstack(void)
 {
   uint newstack = rcr2();
   newstack=(uint)PGROUNDDOWN(newstack);
-  if(newstack<0x2000||newstack<proc->sz) {//handle access to null space
-    cprintf("access to 0x2000,needs to trap\n");
+  if(newstack<0x2000||newstack<proc->sz||newstack>USERTOP) {//handle access to null space
+    cprintf("access to 0x2000||USERTOP,needs to trap\n");
     proc->killed = 1;
     exit();
   }
@@ -141,9 +141,7 @@ growstack(void)
       switchuvm(proc);
       return 0;
     }
-  } else {
-    exit();
-  }
+  } 
   return -1;
 }
 
