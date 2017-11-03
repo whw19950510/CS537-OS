@@ -8,4 +8,14 @@ child process. Also, the first process, which created by userinit() should also 
 should both be set to 0x2000, so that it enters here.
 The total executing process is that userinit(){which calls mappages}=>exec{first process}=>child fork{calls copyuvm}=>maybe trap=>
 when reference below 0x2000, should trap and exit, so be careful when you checkrange & grow stack, not all conditions should grow stacks.
+Other trap conditions should just call exit().
+
+I print several message in grow stack such that find that problems lies in allocuvm when I tried to grow stack;
+only when the page fault position are in one page can grow stack, other situation just kill process and exit(), that should be the right handle ways.
+
+for syscall.c, make sure that argint() && argstr() can fetch data both from heap & stack, thus need to scan both parts 
+for fetchstr(). Besides, when you make check to the argument on stack, make sure that for fetch int, you check (addr+4) in range of size, for fetch string
+you only fetch (addr+1).
+
+
 
