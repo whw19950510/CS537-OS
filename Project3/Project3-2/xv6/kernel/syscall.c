@@ -14,10 +14,10 @@
 // to a saved program counter, and then the first argument.
 
 // Fetch the int at addr from process p.
-int checkbounds(struct proc* p, int addr)
+int checkbounds(struct proc* p, int addr,int size)
 {
   
-  if(addr>=USERTOP||addr+4>USERTOP||addr<2*PGSIZE||(addr+4)<2*PGSIZE||((addr>=p->sz)&&(addr<p->stack_head))||((addr+4>p->sz)&&(addr+4<=p->stack_head)))
+  if(addr>USERTOP||addr+size>USERTOP||addr<2*PGSIZE||(addr+size)<2*PGSIZE||((addr>=p->sz)&&(addr<p->stack_head))||((addr+size>p->sz)&&(addr+size<p->stack_head)))
   return -1;
   else
   return 0;
@@ -25,7 +25,7 @@ int checkbounds(struct proc* p, int addr)
 int
 fetchint(struct proc *p, uint addr, int *ip)
 {
-  if(checkbounds(p,addr)==-1)
+  if(checkbounds(p,addr,4)==-1)
     return -1;
   *ip = *(int*)(addr);
   return 0;
@@ -39,7 +39,7 @@ fetchstr(struct proc *p, uint addr, char **pp)
 {
   char *s, *ep;
 
-  if(checkbounds(p,addr)==-1)
+  if(checkbounds(p,addr,1)==-1)
     return -1;
   if(addr<=p->sz) {
     *pp = (char*)addr;

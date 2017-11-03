@@ -91,7 +91,7 @@ userinit(void)
   p->tf->es = p->tf->ds;
   p->tf->ss = p->tf->ds;
   p->tf->eflags = FL_IF;
-  p->tf->esp = p->sz;
+  p->tf->esp = p->sz;   //where code part ends,1 page of code program
   p->tf->eip = 0x2000;  // beginning of initcode.S
 
   safestrcpy(p->name, "initcode", sizeof(p->name));
