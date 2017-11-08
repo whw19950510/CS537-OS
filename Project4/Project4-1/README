@@ -1,0 +1,19 @@
+1.for the command shell part, we firstly parse the use's command
+line using strtok_r and judge it's length. Then, we using a char*[]
+to store the return char* pointers from strdup(). Then we just scan this
+char* array and find whether it is a built in command or other commands.
+(1)for the built in command, we using the unix functions to built it
+by ourselves.
+(2)for other commands, we judge whether is contains background execution or
+redirection. Then make corresponding execution.
+We have some difficulty with freeing all memory of the command*[] at first,
+finally, we realize that every pointers created by strdup() should be freed,
+there is some corner case that when I concatenate the background & character
+I forget to free it. Finally we passed all the tests.
+2.for the scheduler part, we using the pstat structure provide to us,
+in the getpinfo() system call, we just call our helper() function to fill in the
+pstat structure. In the scheduler, we find the process with the highest priority
+first, then decide whether there is any process needs to be lifted or downgrading.
+When allocate the process, we also initialize the process's state, inuse bit
+and priority. We have some difficulty with passing the boost && multiple jobs
+at first, finally get solved.
