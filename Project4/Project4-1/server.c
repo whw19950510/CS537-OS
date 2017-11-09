@@ -28,6 +28,7 @@ void* processRequest(void* workBuffer) {
                 Close(((int*)workBuffer)[i]);
                 ((int*)workBuffer)[i]=-1;
                 count--;
+                break;
             }
         }
         Cond_signal(&empty);
