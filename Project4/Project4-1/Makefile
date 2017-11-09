@@ -8,7 +8,7 @@ TARGET = server
 CC = gcc
 CFLAGS = -g -Wall
 
-LIBS = -lpthread 
+LIBS = -lrt -lpthread 
 
 .SUFFIXES: .c .o 
 
@@ -20,7 +20,7 @@ server: server.o request.o cs537.o
 	$(CC) $(CFLAGS) -o server server.o request.o cs537.o $(LIBS)
 
 client: client.o cs537.o
-	$(CC) $(CFLAGS) -o client client.o cs537.o
+	$(CC) $(CFLAGS) -o client client.o cs537.o $(LIBS)
 
 output.cgi: output.c
 	$(CC) $(CFLAGS) -o output.cgi output.c

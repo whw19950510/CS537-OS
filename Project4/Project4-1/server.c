@@ -1,7 +1,7 @@
 #include "cs537.h"
 #include "request.h"
 pthread_mutex_t lock;
-pthread_cond_t full;               //add condition variables to judge
+pthread_cond_t fill;               //add condition variables to judge
 pthread_cond_t empty;
 int bufferlen;                     //buffer length to hold incoming requests
 int count;
@@ -20,16 +20,18 @@ void* processRequest(void* workBuffer) {
     while(1) {
         Mutex_lock(&lock);
         while(count==0) {//no request in the buffer
-            Cond_wait(&full, &lock);
+            Cond_wait(&fill, &lock);
         }
         for(int i=0;i<bufferlen;i++) {
-            if(workBuffer[i]!=-1) {
-                requestHandle(workBuffer[i]);
-                workBuffer[i]=-1;
+            if(((int*)workBuffer)[i]!=-1) {
+                requestHandle(((int*)workBuffer)[i]);
+                Close(((int*)workBuffer)[i]);
+                ((int*)workBuffer)[i]=-1;
                 count--;
             }
         }
         Cond_signal(&empty);
+        Mutex_unlock(&lock);
     } 
 }
 
@@ -58,9 +60,9 @@ int main(int argc, char *argv[])
     getargs(&port, &threadnum, &bufferlen, argc, argv);
     pthread_t *workers = malloc(sizeof(pthread_t)*threadnum);
     int *workBuffer = malloc(sizeof(int)*bufferlen);
-    Mutex_init(&lock);
-    Cond_init(&full);
-    Cond_init(&empty);
+    Mutex_init(&lock,NULL);
+    Cond_init(&fill,NULL);
+    Cond_init(&empty,NULL);
     for(int i=0;i<threadnum;i++) {
         Thread_create(&workers[i],NULL,processRequest,(void*)workBuffer);
     }
@@ -74,20 +76,25 @@ int main(int argc, char *argv[])
     while (1) {
         clientlen = sizeof(clientaddr);
         connfd = Accept(listenfd, (SA *)&clientaddr, (socklen_t *) &clientlen);
+        Mutex_lock(&lock);
+        while(count==bufferlen) {
+            Cond_wait(&empty,&lock);
+        }
         for(int i=0;i<bufferlen;i++) {
             if(workBuffer[i]==-1) {
                 workBuffer[i]=connfd;//write work into Buffer;
                 count++;
+                break;
             }
-                
         }
+        Cond_signal(&fill);
+        Mutex_unlock(&lock);
 	// 
 	// CS537: In general, don't handle the request in the main thread.
 	// Save the relevant info in a buffer and have one of the worker threads 
 	// do the work. 
 	// 
 
-	    //Close(connfd);
     }
     free(workers);
     free(workBuffer);

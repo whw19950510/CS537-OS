@@ -557,25 +557,25 @@ int Open_listenfd(int port)
     return rc;
 }
 //wrapper function for mutex and conditional variables
-int Mutex_init(pthread_mutex_t *lock) {
+int Mutex_init(pthread_mutex_t *lock, const pthread_mutexattr_t *attr) {
     int rc;
-    if((rc = pthread_mutex_init(lock) )!=0) {
+    if((rc = pthread_mutex_init(lock,NULL) )!=0) {
         fprintf(stderr, "initialize mutex error\n");
     }
     return rc;
 }
 
-int Cond_init(pthread_cond_t *condvar) {
+int Cond_init(pthread_cond_t *condvar, pthread_condattr_t *cond_attr) {
     int rc;
-    if((rc = pthread_cond_init(condvar))!=0) {
+    if((rc = pthread_cond_init(condvar,cond_attr))!=0) {
         fprintf(stderr, "initialize conditionvar error\n");
     }
     return rc;
 }
 
-int Thread_create(pthread_t *cur) {
+int Thread_create(pthread_t *cur,const pthread_attr_t *attr, void *start_routine, void *arg) {
     int rc;
-    if((rc = pthread_create(cur))!=0) {
+    if((rc = pthread_create(cur,attr,start_routine,arg))!=0) {
         fprintf(stderr, "create new thread error\n");
     }
     return rc;
@@ -585,6 +585,14 @@ int Mutex_lock(pthread_mutex_t *lock) {
     int rc;
     if((rc = pthread_mutex_lock(lock))!=0) {
         fprintf(stderr, "get lock error\n");
+    }
+    return rc;
+}
+
+int Mutex_unlock(pthread_mutex_t *lock) {
+    int rc;
+    if((rc = pthread_mutex_unlock(lock))!=0) {
+        fprintf(stderr, "release lock error\n");
     }
     return rc;
 }

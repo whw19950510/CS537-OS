@@ -121,4 +121,13 @@ int open_listenfd(int portno);
 int Open_clientfd(char *hostname, int port);
 int Open_listenfd(int port); 
 
+/* Wrappers for client/server helper functions */
+int Mutex_init(pthread_mutex_t *lock,const pthread_mutexattr_t * attr);
+int Cond_init(pthread_cond_t *condvar, pthread_condattr_t *cond_attr);
+int Thread_create(pthread_t *cur,const pthread_attr_t *attr,void *start_routine, void *arg);    
+int Mutex_lock(pthread_mutex_t *lock);
+int Mutex_unlock(pthread_mutex_t *lock);
+int Cond_wait(pthread_cond_t *condvar,pthread_mutex_t *lock);
+int Cond_signal(pthread_cond_t *condvar);
+
 #endif /* __CSAPP_H__ */
