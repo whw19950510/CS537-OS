@@ -22,7 +22,19 @@
  */
 
 #include "cs537.h"
-
+struct arg_struct {
+  int clientfd;
+  char filename[MAXLINE];
+};
+void* sendRequest(void* argclient) {
+  while(1) {
+    struct arg_struct *argcur = (struct arg_struct*) argclient;
+    clientSend(argcur->clientfd, argcur->filename);
+    clientPrint(argcur->clientfd);
+      
+    Close(argcur->clientfd);
+  }
+}
 /*
  * Send an HTTP request for the specified file 
  */
@@ -85,14 +97,17 @@ int main(int argc, char *argv[])
   host = argv[1];
   port = atoi(argv[2]);
   filename = argv[3];
-
-  /* Open a single connection to the specified host and port */
-  clientfd = Open_clientfd(host, port);
-  
-  clientSend(clientfd, filename);
-  clientPrint(clientfd);
-    
-  Close(clientfd);
+  struct arg_struct argclient;
+  pthread_t reqset[10];
+  for(int i=0;i<10;i++) {
+    Thread_create(&reqset[i],NULL,sendRequest,(void*)&argclient);
+  }
+  while(1) {
+      /* Open a single connection to the specified host and port */
+    clientfd = Open_clientfd(host, port);
+    argclient.clientfd=clientfd;
+    strcpy(argclient.filename,filename);
+  }
 
   exit(0);
 }
