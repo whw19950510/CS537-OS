@@ -1,6 +1,8 @@
 #include "cs537.h"
 #include "request.h"
 pthread_mutex_t lock;
+pthread_cond_t full;               //add condition variables to judge
+pthread_cond_t empty;
 // 
 // server.c: A very, very simple web server
 //
@@ -12,6 +14,8 @@ pthread_mutex_t lock;
 //
 
 // CS537: Parse the new arguments too
+
+
 void getargs(int *port, int *threadnum, int *bufferlen, int argc, char *argv[])
 {
     if (argc != 4) {
@@ -37,26 +41,34 @@ int main(int argc, char *argv[])
     getargs(&port, &threadnum, &bufferlen, argc, argv);
     pthread_t *workers = malloc(sizeof(pthread_t)*threadnum);
     int *workBuffer = malloc(sizeof(int)*bufferlen);
+    Mutex_init(&lock);
+    Cond_init(&full);
+    Cond_init(&empty);
     for(int i=0;i<threadnum;i++) {
-        pthread_create(&workers[i],NULL,processRequest,(void*)clientaddr);
+        Thread_create(&workers[i],NULL,processRequest,(void*)workBuffer);
+    }
+    for(int i=0;i<bufferlen;i++) {
+        workBuffer[i] = -1;//initilize the buffer as -1
     }
     // 
     // CS537: Create some threads...
     //
-    pthread_mutex_init(&lock);
     listenfd = Open_listenfd(port);
     while (1) {
-	clientlen = sizeof(clientaddr);
-	connfd = Accept(listenfd, (SA *)&clientaddr, (socklen_t *) &clientlen);
-
+        clientlen = sizeof(clientaddr);
+        connfd = Accept(listenfd, (SA *)&clientaddr, (socklen_t *) &clientlen);
+        for(int i=0;i<bufferlen;i++) {
+            if(workBuffer[i]!=-1) 
+                workBuffer[i]=connfd;//write work into Buffer;
+        }
 	// 
 	// CS537: In general, don't handle the request in the main thread.
 	// Save the relevant info in a buffer and have one of the worker threads 
 	// do the work. 
 	// 
-	requestHandle(connfd);
+	//requestHandle(connfd);
 
-	Close(connfd);
+	    Close(connfd);
     }
     free(workers);
     free(workBuffer);

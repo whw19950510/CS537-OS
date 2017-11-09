@@ -556,5 +556,29 @@ int Open_listenfd(int port)
         unix_error("Open_listenfd error");
     return rc;
 }
+//wrapper function for mutex and conditional variables
+int Mutex_init(pthread_mutex_t *lock) {
+    int rc;
+    if((rc = pthread_mutex_init(lock) )!=0) {
+        fprintf(stderr, "initialize mutex error\n");
+    }
+    return rc;
+}
+
+int Cond_init(pthread_cond_t *condvar) {
+    int rc;
+    if((rc = pthread_cond_init(condvar))!=0) {
+        fprintf(stderr, "initialize conditionvar error\n");
+    }
+    return rc;
+}
+
+int Thread_create(pthread_t *cur) {
+    int rc;
+    if((rc = pthread_create(cur))!=0) {
+        fprintf(stderr, "create new thread error\n");
+    }
+    return rc;
+}
 
 
