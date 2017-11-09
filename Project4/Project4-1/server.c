@@ -1,6 +1,6 @@
 #include "cs537.h"
 #include "request.h"
-
+pthread_mutex_t lock;
 // 
 // server.c: A very, very simple web server
 //
@@ -12,13 +12,19 @@
 //
 
 // CS537: Parse the new arguments too
-void getargs(int *port, int argc, char *argv[])
+void getargs(int *port, int *threadnum, int *bufferlen, int argc, char *argv[])
 {
-    if (argc != 2) {
-	fprintf(stderr, "Usage: %s <port>\n", argv[0]);
+    if (argc != 4) {
+	fprintf(stderr, "Usage: %s <port> <threadnum> <bufferlen>\n", argv[0]);
 	exit(1);
     }
     *port = atoi(argv[1]);
+    *threadnum = atoi(argv[2]);
+    *bufferlen = atoi(argv[3]);
+    if(*threadnum<=0||bufferlen<=0) {
+        fprintf(stderr, "threadnum & buffer length must be an integer");
+        exit(1);
+    }
 }
 
 
@@ -26,13 +32,18 @@ int main(int argc, char *argv[])
 {
     int listenfd, connfd, port, clientlen;
     struct sockaddr_in clientaddr;
+    int threadnum,bufferlen;
 
-    getargs(&port, argc, argv);
-
+    getargs(&port, &threadnum, &bufferlen, argc, argv);
+    pthread_t *workers = malloc(sizeof(pthread_t)*threadnum);
+    int *workBuffer = malloc(sizeof(int)*bufferlen);
+    for(int i=0;i<threadnum;i++) {
+        pthread_create(&workers[i],NULL,processRequest,(void*)clientaddr);
+    }
     // 
     // CS537: Create some threads...
     //
-
+    pthread_mutex_init(&lock);
     listenfd = Open_listenfd(port);
     while (1) {
 	clientlen = sizeof(clientaddr);
@@ -47,7 +58,8 @@ int main(int argc, char *argv[])
 
 	Close(connfd);
     }
-
+    free(workers);
+    free(workBuffer);
 }
 
 
