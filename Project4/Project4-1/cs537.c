@@ -581,4 +581,26 @@ int Thread_create(pthread_t *cur) {
     return rc;
 }
 
+int Mutex_lock(pthread_mutex_t *lock) {
+    int rc;
+    if((rc = pthread_mutex_lock(lock))!=0) {
+        fprintf(stderr, "get lock error\n");
+    }
+    return rc;
+}
 
+int Cond_wait(pthread_cond_t *condvar,pthread_mutex_t *lock) {
+    int rc;
+    if((rc = pthread_cond_wait(condvar, lock))!=0) {
+        fprintf(stderr, "wait conditionvar error\n");
+    }
+    return rc;
+}
+
+int Cond_signal(pthread_cond_t *condvar) {
+    int rc;
+    if((rc = pthread_cond_signal(condvar))!=0) {
+        fprintf(stderr, "signal conditionvar error\n");
+    }
+    return rc;
+}
