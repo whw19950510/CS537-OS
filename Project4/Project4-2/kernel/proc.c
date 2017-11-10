@@ -215,7 +215,7 @@ wait(void)
     // Scan through table looking for zombie children.
     havekids = 0;
     for(p = ptable.proc; p < &ptable.proc[NPROC]; p++){
-      if(p->parent != proc)
+      if(p->parent != proc||p->pgdir==proc->pgdir)
         continue;
       havekids = 1;
       if(p->state == ZOMBIE){
@@ -447,7 +447,8 @@ int clone(void(*fcn)(void*), void *arg, void *stack)
 {//stay on the same address space, run on a different stack;what a kernel threads is
   int i, pid;
   struct proc *np;
-
+  int* sptop=(int*)stack;
+  sptop -=PGSIZE;
   // Allocate process.
   if((np = allocproc()) == 0)
     return -1;
@@ -465,19 +466,19 @@ int clone(void(*fcn)(void*), void *arg, void *stack)
   np->sz = proc->sz;
   np->parent = proc;  
   *np->tf = *proc->tf;//full copy of trap frame
-  stack=stack-PGSIZE;//bottom of stack
   if(arg!=NULL)　{
-    stack=stack-sizeof(arg);
-    *stack = arg;
+    sptop=sptop-sizeof(arg);
+    *sptop = arg;
   }
-  stack=stack-sizeof(0xffffffff);
+  sptop=sptop-sizeof(0xffffffff);
   *stack=0xffffffff;//push return code
-  np->tf->esp = stack;
-  np->tf->eip = (int)*fcn;//eip points to the start of routine
-  stack -= sizeof(np->tf->ebp);//minus 4 again
-  *stack=np->tf->ebp;  //push old ebp to stack                    
-  *np->tf->esp=*np->tf->ebp;
-  np->tf->esp = stack;
+  np->tf->esp = sptop;//point stack pointer and stack-top to same position
+  np->tf->eip = *((int*)fcn);//eip points to the start of routine
+  /*no need to deal with ebp for this implementation
+  sptop -= sizeof(np->tf->ebp);//minus 4 again
+  *sptop=np->tf->ebp;  //push old ebp to stack                    
+  *np->tf->esp=*np->tf->ebp;//copy stack pointers to ebp
+  */    
   // Clear %eax so that fork returns 0 in the child.
   np->tf->eax = 0;
   //copy file descriptors
@@ -502,7 +503,7 @@ int join(void **stack)
     // Scan through table looking for zombie children.
     havekids = 0;
     for(p = ptable.proc; p < &ptable.proc[NPROC]; p++){
-      if(p->parent != proc)
+      if(p->parent != proc||p->pgdir!=proc->pgdir)
         continue;
       havekids = 1;
       if(p->state == ZOMBIE){
@@ -511,6 +512,7 @@ int join(void **stack)
         kfree(p->kstack);
         p->kstack = 0;
         //freevm(p->pgdir);
+        *stack=p->tf->esp;
         p->state = UNUSED;
         p->pid = 0;
         p->parent = 0;
