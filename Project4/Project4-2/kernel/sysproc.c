@@ -88,3 +88,17 @@ sys_uptime(void)
   release(&tickslock);
   return xticks;
 }
+
+//system call for creating a new threads
+int
+sys_clone(void)
+{
+
+}
+
+//system call for waiting other threads
+int
+sys_join(void)
+{
+  
+}
