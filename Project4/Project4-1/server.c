@@ -5,6 +5,8 @@ pthread_cond_t fill;               //add condition variables to judge
 pthread_cond_t empty;
 int bufferlen;                     //buffer length to hold incoming requests
 int count;
+int front;
+int rear;
 // 
 // server.c: A very, very simple web server
 //
@@ -22,15 +24,11 @@ void* processRequest(void* workBuffer) {
         while(count==0) {//no request in the buffer
             Cond_wait(&fill, &lock);
         }
-        for(int i=0;i<bufferlen;i++) {
-            if(((int*)workBuffer)[i]!=-1) {
-                requestHandle(((int*)workBuffer)[i]);
-                Close(((int*)workBuffer)[i]);
-                ((int*)workBuffer)[i]=-1;
-                count--;
-                break;
-            }
-        }
+        int connfd = ((int*)workBuffer)[front];
+        requestHandle(connfd);
+        Close(connfd);
+        front = (front + 1)%bufferlen;
+        count--;
         Cond_signal(&empty);
         Mutex_unlock(&lock);
     } 
@@ -61,6 +59,9 @@ int main(int argc, char *argv[])
     getargs(&port, &threadnum, &bufferlen, argc, argv);
     pthread_t *workers = malloc(sizeof(pthread_t)*threadnum);
     int *workBuffer = malloc(sizeof(int)*bufferlen);
+    rear = bufferlen-1;
+    front = 0;
+    count = 0;
     Mutex_init(&lock,NULL);
     Cond_init(&fill,NULL);
     Cond_init(&empty,NULL);
@@ -81,13 +82,11 @@ int main(int argc, char *argv[])
         while(count==bufferlen) {
             Cond_wait(&empty,&lock);
         }
-        for(int i=0;i<bufferlen;i++) {
-            if(workBuffer[i]==-1) {
-                workBuffer[i]=connfd;//write work into Buffer;
-                count++;
-                break;
-            }
-        }
+
+        rear = (rear + 1)%bufferlen;
+        workBuffer[rear] = connfd;
+        count++;
+        printf("%d enqueued to queue\n", connfd);
         Cond_signal(&fill);
         Mutex_unlock(&lock);
 	// 
