@@ -224,6 +224,7 @@ wait(void)
         pid = p->pid;
         kfree(p->kstack);
         p->kstack = 0;
+        if(p->count_thread==0)
         freevm(p->pgdir);//only free when this is the last one
         p->state = UNUSED;
         p->pid = 0;
@@ -489,7 +490,7 @@ int clone(void(*fcn)(void*), void *arg, void *stack)
 
 int join(void **stack)
 {
-  if ((uint) stack + sizeof(uint) > *(proc->sz)) {
+  if ((uint) stack + sizeof(uint) > (proc->sz)) {
     return -1;
   }
   struct proc *p;
