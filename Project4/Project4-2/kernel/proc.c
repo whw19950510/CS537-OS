@@ -45,6 +45,7 @@ allocproc(void)
 found:
   p->state = EMBRYO;
   p->pid = nextpid++;
+  p->count_thread = 0;
   release(&ptable.lock);
 
   // Allocate kernel stack if possible.
@@ -215,7 +216,7 @@ wait(void)
     // Scan through table looking for zombie children.
     havekids = 0;
     for(p = ptable.proc; p < &ptable.proc[NPROC]; p++){
-      if(p->parent != proc||p->pgdir==proc->pgdir)
+      if(p->parent != proc||p->pgdir==proc->pgdir)//share address space,no effect
         continue;
       havekids = 1;
       if(p->state == ZOMBIE){
@@ -223,7 +224,7 @@ wait(void)
         pid = p->pid;
         kfree(p->kstack);
         p->kstack = 0;
-        freevm(p->pgdir);
+        freevm(p->pgdir);//only free when this is the last one
         p->state = UNUSED;
         p->pid = 0;
         p->parent = 0;
@@ -448,37 +449,30 @@ int clone(void(*fcn)(void*), void *arg, void *stack)
   int i, pid;
   struct proc *np;
   int* sptop=(int*)stack;
-  sptop -=PGSIZE;
+  sptop +=PGSIZE;   //grow up for one page
+  cprintf("thread stack addr bottom:%d",*sptop);
   // Allocate process.
   if((np = allocproc()) == 0)
     return -1;
-  //kernel threads each runnings threads will have
-  // Copy process state from p.
-  /*
-  if((np->pgdir = copyuvm(proc->pgdir, proc->sz)) == 0){
-    kfree(np->kstack);
-    np->kstack = 0;
-    np->state = UNUSED;
-    return -1;
-  }
-  */
+  
   np->pgdir = proc->pgdir;
   np->sz = proc->sz;
-  np->parent = proc;  
+  np->parent = proc;
   *np->tf = *proc->tf;//full copy of trap frame
-  if(arg!=NULL)　{
-    sptop=sptop-sizeof(arg);
-    *sptop = arg;
-  }
+  
+  proc->count_thread++;   //background_thread++
+  np->stack = stack;
+
+  sptop=sptop - 4;
+  *sptop = (int)arg;
+  
   sptop=sptop-sizeof(0xffffffff);
-  *stack=0xffffffff;//push return code
-  np->tf->esp = sptop;//point stack pointer and stack-top to same position
-  np->tf->eip = *((int*)fcn);//eip points to the start of routine
-  /*no need to deal with ebp for this implementation
-  sptop -= sizeof(np->tf->ebp);//minus 4 again
-  *sptop=np->tf->ebp;  //push old ebp to stack                    
-  *np->tf->esp=*np->tf->ebp;//copy stack pointers to ebp
-  */    
+  *sptop=0xffffffff;//push return code
+
+  np->tf->esp = (uint)sptop;//point stack pointer and stack-top to same position
+  np->tf->eip = (uint)fcn;//eip points to the start of routine
+  //np->tf->ebp = np->tf->esp;
+  
   // Clear %eax so that fork returns 0 in the child.
   np->tf->eax = 0;
   //copy file descriptors
@@ -495,36 +489,40 @@ int clone(void(*fcn)(void*), void *arg, void *stack)
 
 int join(void **stack)
 {
+  if ((uint) stack + sizeof(uint) > *(proc->sz)) {
+    return -1;
+  }
   struct proc *p;
-  int havekids, pid;
+  int havethreads, pid;
 
   acquire(&ptable.lock);
   for(;;){
     // Scan through table looking for zombie children.
-    havekids = 0;
+    havethreads = 0;
     for(p = ptable.proc; p < &ptable.proc[NPROC]; p++){
       if(p->parent != proc||p->pgdir!=proc->pgdir)
         continue;
-      havekids = 1;
+      havethreads = 1;
       if(p->state == ZOMBIE){
         // Found one.
         pid = p->pid;
         kfree(p->kstack);
         p->kstack = 0;
         //freevm(p->pgdir);
-        *stack=p->tf->esp;
+        *stack=p->stack;
         p->state = UNUSED;
         p->pid = 0;
         p->parent = 0;
         p->name[0] = 0;
         p->killed = 0;
+        proc->count_thread--;
         release(&ptable.lock);
         return pid;
       }
     }
 
     // No point waiting if we don't have any children.
-    if(!havekids || proc->killed){
+    if(!havethreads || proc->killed){
       release(&ptable.lock);
       return -1;
     }
