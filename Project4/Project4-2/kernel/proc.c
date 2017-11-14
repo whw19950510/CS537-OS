@@ -446,12 +446,12 @@ procdump(void)
 }
 
 int clone(void(*fcn)(void*), void *arg, void *stack)
-{//stay on the same address space, run on a different stack;what a kernel threads is
+{//stay on the same address space, run on a different user-stack
   int i, pid;
   struct proc *np;
-  int* sptop=(int*)stack;
+  uint sptop=(uint)stack;//entry point of the stack
   sptop +=PGSIZE;   //grow up for one page
-  cprintf("thread stack addr bottom:%d",*sptop);
+  //cprintf("thread stack addr bottom:%d",sptop);
   // Allocate process.
   if((np = allocproc()) == 0)
     return -1;
@@ -463,17 +463,21 @@ int clone(void(*fcn)(void*), void *arg, void *stack)
   
   proc->count_thread++;   //background_thread++
   np->stack = stack;
-
+  /*
   sptop=sptop - 4;
-  *sptop = (int)arg;
-  
+  *sptop = *(int*)arg;/////trap into pagefault
   sptop=sptop-sizeof(0xffffffff);
   *sptop=0xffffffff;//push return code
-
+  */
+  //np->tf->ebp = np->tf->esp;
+  uint ustack[2];
+  ustack[0] = 0xffffffff;  // should follow exec.c to push arguments
+  ustack[1] = (uint)arg;
+  sptop=sptop-2*sizeof(uint);
   np->tf->esp = (uint)sptop;//point stack pointer and stack-top to same position
   np->tf->eip = (uint)fcn;//eip points to the start of routine
-  //np->tf->ebp = np->tf->esp;
-  
+  if(copyout(np->pgdir, sptop, ustack, 2*sizeof(uint)) < 0)
+  return -1;
   // Clear %eax so that fork returns 0 in the child.
   np->tf->eax = 0;
   //copy file descriptors
@@ -509,7 +513,6 @@ int join(void **stack)
         pid = p->pid;
         kfree(p->kstack);
         p->kstack = 0;
-        //freevm(p->pgdir);
         *stack=p->stack;
         p->state = UNUSED;
         p->pid = 0;
