@@ -25,4 +25,7 @@ int sys_write(void);
 int sys_uptime(void);
 int sys_clone(void);
 int sys_join(void);
+int sys_cond_wait(void);
+int sys_cond_signal(void);
+int sys_cond_init(void);
 #endif // _SYSFUNC_H_

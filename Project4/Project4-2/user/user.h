@@ -29,6 +29,9 @@ int sleep(int);
 int uptime(void);
 int clone(void (*start_routine)(void*), void*, void*);
 int join(void **);
+void cond_wait(cond_t *, lock_t *);
+void cond_signal(cond_t *);
+void cond_init(cond_t *);
 // user library functions (ulib.c)
 int stat(char*, struct stat*);
 char* strcpy(char*, char*);

@@ -27,4 +27,7 @@
 #define SYS_join   23
 #define SYS_lock   24
 #define SYS_unlock 25
+#define SYS_cond_wait 26
+#define SYS_cond_signal 27
+#define SYS_cond_init 28
 #endif // _SYSCALL_H_
