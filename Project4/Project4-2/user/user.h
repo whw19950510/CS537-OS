@@ -2,9 +2,7 @@
 #define _USER_H_
 
 struct stat;
-typedef struct __lock_t{
-	uint flag;
-}lock_t;
+
 // system calls
 int fork(void);
 int exit(void) __attribute__((noreturn));

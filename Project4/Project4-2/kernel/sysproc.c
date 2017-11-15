@@ -114,3 +114,36 @@ sys_join(void)
 			return -1;
   return join(stack);
 }
+
+int
+sys_cond_wait(void)
+{
+  cond_t *condvar;
+  lock_t *lock;
+	if(argptr(0, (char**)&condvar, sizeof(void*) < 0))
+		return -1;
+  if(argptr(1, (char**)&lock, sizeof(void*) < 0))
+		return -1;
+  cond_wait(condvar,lock);
+  return 0;
+}
+
+int
+sys_cond_signal(void)
+{
+  cond_t *condvar;
+	if(argptr(0, (char**)&condvar, sizeof(void*) < 0))
+		return -1;
+  cond_signal(condvar);
+  return 0;
+}
+
+int
+sys_cond_init(void)
+{
+  cond_t *condvar;
+	if(argptr(0, (char**)&condvar, sizeof(void*) < 0))
+		return -1;
+  cond_init(condvar);
+  return 0;
+}

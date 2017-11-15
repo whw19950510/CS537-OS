@@ -156,6 +156,7 @@ fork(void)
  
   pid = np->pid;
   np->state = RUNNABLE;
+  np->count_thread = 0;
   safestrcpy(np->name, proc->name, sizeof(proc->name));
   return pid;
 }
@@ -163,6 +164,7 @@ fork(void)
 // Exit the current process.  Does not return.
 // An exited process remains in the zombie state
 // until its parent calls wait() to find out it exited.
+//according to the definition above, free resource should be finished in wait()
 void
 exit(void)
 {
@@ -236,7 +238,7 @@ wait(void)
       }
     }
 
-    // No point waiting if we don't have any children.
+    // No point waiting if we don't have any children threads, just return -1.
     if(!havekids || proc->killed){
       release(&ptable.lock);
       return -1;
@@ -536,4 +538,50 @@ int join(void **stack)
   }
 }
 
+void cond_init(cond_t *condvar)
+{
+  condvar->head=0;
+  condvar->tail=0;
+  condvar->flag=0;
+  condvar->count=0;
+}
 
+void cond_wait(cond_t *condvar, lock_t * lock)
+{
+  if(lock->flag==0)
+    panic("wait without lock");
+  if(condvar->count==8)
+    panic("cond_queue full");
+  while(xchg(&condvar->flag, 1) != 0);
+  
+  // Go to sleep.
+  condvar->thqueue[condvar->tail]=proc;
+  condvar->tail=(condvar->tail+1)%8;
+  condvar->count++;
+  acquire(&ptable.lock);  //DOC: sleeplock1, acquire system lock
+  xchg(&condvar->flag, 0);
+  xchg(&lock->flag, 0);
+  proc->state = SLEEPING;
+  sched();
+  //when it returns from sched, thread has already been RUNNABLE
+  //release lock to wait to be waken up
+  
+  release(&ptable.lock);
+  
+  //once woken up try to require the lock, should be the outside lock
+  while(xchg(&condvar->flag, 1) != 0);
+}
+
+void cond_signal(cond_t *condvar)
+{
+  while(xchg(&condvar->flag, 1) != 0);
+  if(condvar->count==0) {
+    xchg(&condvar->flag, 0);
+    exit();
+  }
+  condvar->thqueue[condvar->head]->state=RUNNABLE;
+  condvar->head=(condvar->head+1)%8;
+  condvar->count--;
+  if(condvar->flag == 1)
+  xchg(&condvar->flag, 0);
+}

@@ -9,7 +9,8 @@ struct pipe;
 struct proc;
 struct spinlock;
 struct stat;
-
+struct cond_t;
+struct lock_t;
 // bio.c
 void            binit(void);
 struct buf*     bread(uint, uint);
@@ -111,6 +112,9 @@ void            wakeup(void*);
 void            yield(void);
 int             clone(void(*fcn)(void*), void *, void *);
 int             join(void**);
+void            cond_wait(cond_t *, lock_t *);
+void            cond_signal(cond_t *);
+void            cond_init(cond_t *);
 // swtch.S
 void            swtch(struct context**, struct context*);
 
