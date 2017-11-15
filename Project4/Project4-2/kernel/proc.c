@@ -569,7 +569,7 @@ void cond_wait(cond_t *condvar, lock_t * lock)
   release(&ptable.lock);
   
   //once woken up try to require the lock, should be the outside lock
-  while(xchg(&condvar->flag, 1) != 0);
+  while(xchg(&lock->flag, 1) != 0);
 }
 
 void cond_signal(cond_t *condvar)
@@ -577,7 +577,7 @@ void cond_signal(cond_t *condvar)
   while(xchg(&condvar->flag, 1) != 0);
   if(condvar->count==0) {
     xchg(&condvar->flag, 0);
-    exit();
+    return;
   }
   condvar->thqueue[condvar->head]->state=RUNNABLE;
   condvar->head=(condvar->head+1)%8;
