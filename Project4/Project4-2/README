@@ -1,5 +1,5 @@
 Project 4b
-1. We created clone() function, where we could create a new thread which shares the same address space with its parent (the address space size will also be shared). Also, we created join() function to make the parent thread wait for the child thread. 
+1. We created clone() function, where we could create a new thread which shares the same address space with its parent (the address space size will also be shared). Also, we created join() function to make the parent thread wait for the child thread, only wait for itself's cloning threads because we set the parent to which thread clones it,only waits for the first one which finishes because once find loop will break. 
 
 2. We made some adjustments to the wait() function. The wait() function will check the address space and only wait for the child process which has different pgdir, while join() function will wait for child thread that has the same address space.
 
