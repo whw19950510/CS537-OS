@@ -14,6 +14,7 @@ USER_PROGS := \
 	sh\
 	stressfs\
 	tester\
+	cond\
 	usertests\
 	wc\
 	create\
