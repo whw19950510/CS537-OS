@@ -118,6 +118,12 @@ growproc(int n)
       return -1;
   }
   proc->sz = sz;
+  struct proc *p;
+  for(p = ptable.proc; p < &ptable.proc[NPROC]; p++) {
+    if(p->parent==proc&&p->pgdir==proc->pgdir) {
+      p->sz=sz;
+    }
+  }
   switchuvm(proc);
   return 0;
 }
