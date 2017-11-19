@@ -15,6 +15,8 @@ USER_PROGS := \
 	stressfs\
 	tester\
 	cond\
+	size\
+	many_threads\
 	usertests\
 	wc\
 	create\
