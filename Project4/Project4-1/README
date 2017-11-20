@@ -1,4 +1,5 @@
-Finish a simple thread-pool server, which can response to mulltiple HTTP
-requests at the same time. Use a queue as buffer to hold pending requests,
-use thread-pool to continuely consume the requests. Can add more scheduling
+1.Finish a simple thread-pool server, which can response to mulltiple HTTP requests at the same time. 
+2.Use a queue as buffer to hold pending requests,use thread-pool to continuely consume the requests. Can add more scheduling
 pattern for the queue buffer, such as work with shortest time requests first. 
+3.One important note is that requesthandle should be outside the mutexlock, it is very similar to a asynchronous request in web application,
+thread should continue execution and once the request has been handled it "resolve a promise", thus can allow multi-tasks to be handled at the same time.
