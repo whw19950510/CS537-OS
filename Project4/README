@@ -1,0 +1,21 @@
+Project 4a-scalable web server
+1.Finish a simple thread-pool server, which can response to mulltiple HTTP requests at the same time. 
+
+2.Use a queue as buffer to hold pending requests,use thread-pool to continuely consume the requests. Can add more scheduling
+pattern for the queue buffer, such as work with shortest time requests first. 
+
+3.One important note is that requesthandle should be outside the mutexlock, it is very similar to a asynchronous request in web application,
+thread should continue execution and once the request has been handled it "resolve a promise", thus can allow multi-tasks to be handled at the same time.
+
+Project 4b-add kernel threads as user lib
+1. We created clone() function, where we could create a new thread which shares the same address space with its parent (the address space size will also be shared). Also, we created join() function to make the parent thread wait for the child thread, only wait for itself's cloning threads because we set the parent to which thread clones it,only waits for the first one which finishes because once find loop will break. 
+
+2. We made some adjustments to the wait() function. The wait() function will check the address space and only wait for the child process which has different pgdir, while join() function will wait for child thread that has the same address space.
+
+3. We added the reference check to the process, so that wait() could only free the address space only when it is the last reference to it. 
+
+4. We created a thread library that supports thread_create(), thread_join() and spin lock. The thread_create() method will create a page-aligned stack and use clone() to create the thread. The thread_join() will use join() to join with the child thread, and free the user stack correspondingly. 
+
+5. The spin lock has three methods: lock_init(), lock_acquire() and lock_release(). The lock_acquire() will use xchg() in order to do the lock status checking and lock acquiring in the same time. 
+
+Notes:when put thread to sleep should release the outside lock&&internal lock. When wait thread has been waken up(call sched()), release ptable.lock && try to acquire external lock again. Make sure to acquire the correct lock. Another test size just check when grow a process(sbrk/growproc) should change proc->sz of multiple threads at the same time. 
