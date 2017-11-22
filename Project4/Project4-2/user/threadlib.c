@@ -35,11 +35,13 @@ int thread_create(void (*start_routine)(void*), void *arg)
 }
 
 int thread_join() {
-    void* stack=malloc(sizeof(void*));
+    //void* stack=malloc(sizeof(void*));
+    void *stack;
     int res = join(&stack);
     lock_t lock;
     lock_init(&lock);
     lock_acquire(&lock);
+    if(res!=-1)
     free(stack);
     lock_release(&lock);
     return res;
