@@ -108,7 +108,7 @@ void getargs(int *port, int *threadnum, int *bufferlen, int argc, char *argv[])
     *port = atoi(argv[1]);
     *threadnum = atoi(argv[2]);
     *bufferlen = atoi(argv[3]);
-    if(*threadnum<=0||*bufferlen<=0) {
+    if(*port<=0||*threadnum<=0||*bufferlen<=0) {
         fprintf(stderr, "threadnum & buffer length must be an integer");
         exit(1);
     }
@@ -162,6 +162,7 @@ int main(int argc, char *argv[])
     
     free(workers);
     free(workBuffer);
+    return 0;
 }
 
 
