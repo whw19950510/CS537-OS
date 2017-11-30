@@ -15,11 +15,12 @@ int freeblock;
 int usedblocks;
 int bitblocks;
 int freeinode = 1;
+int totalblocks;
 int root_inode;
 
 int main(int argc,char* argv[]) {
     if(argc!=2) {
-        fprintf(stderr,"image not found.\n");
+        fprintf(stderr,"Usage: xv6_fsck <file_system_image>.\n");
         exit(1);
     }
     fsfd = open(argv[1], O_RDONLY);
@@ -28,6 +29,7 @@ int main(int argc,char* argv[]) {
         fprintf(stderr,"image not found.");
         exit(1);
     }
+///////////////////////////////////////////////////////////////
     //calculate file size
     struct stat st;
     int rc = fstat(fsfd, &st);
@@ -36,22 +38,24 @@ int main(int argc,char* argv[]) {
         return -1;
     }
     
-
     void *img_ptr=mmap(NULL,st.st_size,PROT_READ,MAP_PRIVATE,fsfd,0);
+/////////////////////////////////////////////////////////////////////
     //check superblocks
     //////////////because first block is unused
     sb=(struct superblock*)(img_ptr+BSIZE);
     bitblocks = sb->size/(512*8) + 1;/////////bitblock占用block数目
     usedblocks=sb->ninodes / IPB + 3 + bitblocks;//////////已经使用的block
     freeblock = usedblocks;////////////////////////?????why is this useful
+    totalblocks=usedblocks+sb->nblocks;
     //check inode table
     struct dinode *inode_ptr=(struct dinode *)(img_ptr+2*BSIZE);
     //BBLOCK(0, sb->ninodes) exceeds inode table
-    void *bitS = img_ptr + BBLOCK(0, sb->ninodes)*BSIZE; //start of bits
-    //void *dataStart = img_ptr + BBLOCK(0, sb->ninodes)*BSIZE+BSIZE; //start of data blocks
+    void *bitStart = img_ptr + 2*BSIZE + BBLOCK(0, sb->ninodes)*BSIZE; //start of bits
+    void *dataStart = img_ptr + 2*BSIZE + BBLOCK(0, sb->ninodes)*BSIZE + bitBlocks*BSIZE; //start of data blocks
+    void *sysend=dataStart+sb->nblocks*BSIZE;//////////file system end address
     for(int i=0;i<sb->ninodes;i++) {
-        if(i==ROOTINO) {
-            //check whether root directories exists
+        if(i==ROOTINO-1) {
+            //check whether root directories exists,first inode number
             if(inode_ptr==NULL||inode_ptr->type!=T_DIR) {
                 fprintf(stderr,"root directory does not exist.\n");
                 exit(1);
@@ -63,52 +67,136 @@ int main(int argc,char* argv[]) {
             exit(1);
         }
         void *datablockAddr;
+/////////////////////////////////////////////////////////////////////
+////////check second rules,check whether in valid address
         //inuse inodes,check second rules
         //Note: must check indirect blocks too, when they are in use. ??? how to check that
         if(inode_ptr->type!=0) {
-            for(int j=0;j<NDIRECT+1;j++) {//////scan through address
-                if(NULL==(datablockAddr=inode_ptr->addrs[j]*BSIZE+img_ptr)) {
-                    fprintf(stderr,"bad address in inode.\n");
+            for(int j=0;j<NDIRECT;j++) {//////scan through address,only consider direct address
+                if(inode_ptr->addrs[j]!=0) {///////inuse address of inode
+                    if(img_ptr+BSIZE*inode_ptr->addrs[j]>sysend||img_ptr+BSIZE*inode_ptr->addrs[j]<dataStart) {
+                        fprintf(stderr,"bad direct address in inode.\n");
                     exit(1);
+                    }
+                }
+                ///inuse address
+                if(inode_ptr->addrs[j]!=0){
+
                 }
                 //bitS is the initial address of bitMap
-                if((1<<(inode_ptr->addrs[j]%8))!=*((int*)(bitS+inode_ptr->addrs[j]/8))) {
+                if((1<<(inode_ptr->addrs[j]%8))!=*((int*)(bitStart+inode_ptr->addrs[j]/8))) {
                     fprintf(stderr,"address used by inode but marked free in bitmap.\n");
                     exit(1);
                     //set #blockNumber bit in bitmap to 1
                 }
             }
-
+            //checks indirect address is valid
+            if(inode_ptr->addrs[NDIRECT]!=0) {
+                //attrct current indirect address
+                int indirectaddr[NINDIRECT];
+                int indirect_st=inode_ptr->addrs[NDIRECT];
+                void* indirect_ptr=img_ptr+inode_ptr->addrs[NDIRECT]*BSIZE;
+                for(int k=0;k<NINDIRECT;k++) {
+                    if(((int*)indirect_ptr)[k]!=0) {
+                        if((int*)indirect_ptr)[k]>sysend||(int*)indirect_ptr)[k]<dataStart) {
+                            fprintf(stderr,"bad indirect address in inode.\n");
+                            exit(1);
+                        }
+                    }
+                }
+                /*
+                if(-1==rsect(xint(indirect_st), (char*)indirectaddr)) {
+                    fprintf(stderr,"bad indirect address in inode.\n");
+                    exit(1);
+                }
+                */
+            }
+            //regular file;Reference counts (number of links) for regular files match the number of times file is referred to in directories (i.e., hard links work correctly). 
+            if(inode_ptr->type==T_FILE) {
+                if(inode_ptr->nlink!=) {
+                    fprintf(stderr,"bad reference count for file.\n");
+                    exit(1);
+                }
+            }
+///////////////////////////////////////////////////////////////////////
+            char *p = (char*)xp;
+            int fbn, off, n1;
+            struct dinode din;
+            char buf[512];
+            int indirect[NINDIRECT];
+            int x;
+            int n=sizeof(struct dirent);
+            off = xint(inode_ptr->size);
+            while(n > 0){
+                fbn = off / 512;
+                if(fbn < NDIRECT){
+                if(xint(inode_ptr->addrs[fbn]) == 0){
+                    inode_ptr->addrs[fbn] = xint(freeblock++);
+                    usedblocks++;
+                }
+                x = xint(inode_ptr->addrs[fbn]);
+                } else {
+                if(xint(inode_ptr->addrs[NDIRECT]) == 0){
+                    // printf("allocate indirect block\n");
+                    din.addrs[NDIRECT] = xint(freeblock++);
+                    usedblocks++;
+                }
+                // printf("read indirect block\n");
+                rsect(xint(din.addrs[NDIRECT]), (char*)indirect);
+                if(indirect[fbn - NDIRECT] == 0){
+                    indirect[fbn - NDIRECT] = xint(freeblock++);
+                    usedblocks++;
+                    wsect(xint(din.addrs[NDIRECT]), (char*)indirect);
+                }
+                x = xint(indirect[fbn-NDIRECT]);
+                }
+                n1 = min(n, (fbn + 1) * 512 - off);
+                rsect(x, buf);
+                bcopy(p, buf + off - (fbn * 512), n1);
+                wsect(x, buf);
+                n -= n1;
+                off += n1;
+                p += n1;
+            }
+            inode_ptr->size = xint(off);
+            winode(inum, &din);
         }
         //For in-use inodes, each address in use 
         //is also marked in use in the bitmap. 
         //ERROR: address used by inode but marked free in bitmap.
         inode_ptr=inode_ptr+sizeof(struct dinode*);
     }
-    struct dirent dir_buf;
-    struct dirent *entry;//////current inode is directory inode
-	DIR* root_dir = opendir(argv[2]);
-    DIR* cur_dir=root_dir;
-    if(root_dir==NULL) {
-        fprintf(stderr,"root directory does not exist.\n");
-    }
-    int cur_fd = dirfd(cur_dir);
-    fchdir(cur_fd);
-    while (1) {
-        rc=readdir_r(cur_dir, &dir_buf, &entry);
-        if(rc!=0) {
-            fprintf(stderr,"error with directory");
-        }
-        if (entry == NULL)
-			break;
-        if (strcmp(entry->d_name, ".") != 0 || strcmp(entry->d_name, "..") != 0) {
-            fprintf(stderr,"directory not properly formatted.\n");
-            exit(1);
-        }
-    }
-
     rc=munmap(img_ptr,0);
     close(fsfd);
     return 0;
 }
+        
+        //For in-use inodes, each address in use 
+        //is also marked in use in the bitmap. 
+        //ERROR: address used by inode but marked free in bitmap.
 
+    //////////after scan the inode table;;;read the directory and some statictics
+    
+uint
+xint(uint x)
+{
+  uint y;
+  char *a = (char*)&y;
+  a[0] = x;
+  a[1] = x >> 8;
+  a[2] = x >> 16;
+  a[3] = x >> 24;
+  return y;
+}
+
+int 
+rsect(uint sec, void *buf)
+{
+  if(lseek(fsfd, sec * 512L, 0) != sec * 512L){
+    return -1;
+  }
+  if(read(fsfd, buf, 512) != 512){
+    return -1;
+  }
+  return 0;
+}
