@@ -13,8 +13,8 @@ LDOPT 	:= $(OPT)
 LDFLAGS := -lrt -lpthread 
 
 .DEFAULT_GOAL := all
-EXEC := fscheck
-OBJS := fscheck.o 
+EXEC := xv6_fsck
+OBJS := xv6_fsck.o 
 .PHONY: debug
 debug : OPT  := -O0 -g -fno-omit-frame-pointer -fsanitize=address
 debug : LDFLAGS := -fsanitize=address
@@ -28,7 +28,7 @@ all : Makefile $(EXEC)
 	$(CC) $(CCSTD) $(WFLAGS) $(OPT) $(ARCH) $(CFLAGS) -c $< -o $@
 
 # TODO: add targets for building executables
-fscheck: fscheck.o
+xv6_fsck: xv6_fsck.o
 	@ echo Building $@...
 	@ $(CXX) -o $@ $< $(LDFLAGS) $(LDFLAGS)
 
