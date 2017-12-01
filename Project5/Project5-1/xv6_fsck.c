@@ -9,7 +9,6 @@
 #include "fs.h"
 int fsfd;
 struct superblock* sb;
-char zeroes[512];
 int usedblocks;
 int bitblocks;
 int totalblocks;
@@ -48,17 +47,15 @@ int main(int argc,char* argv[]) {
     int cur_inodenum=0;
     //initialize the markup check array with all 0.
     int *visitblock = (int*)malloc(sizeof(int)*totalblocks);
-    /*
-    int *datareference=(int*)malloc(sizeof(int)*(sb->nblocks));
+    int *datareference=(int*)malloc(sizeof(int)*totalblocks);
     int *inodeinuse = (int*)malloc(sizeof(int)*sb->ninodes);//mark inodes inuse situation
     int *inoderefer = (int*)malloc(sizeof(int)*sb->ninodes);
-    for(int i=0;i<sb->nblocks;i++) {
-        datareference[i]=0;
+    for(int i=0;i<sb->ninodes;i++) {
         inodeinuse[i]=0;
         inoderefer[i]=0;
     }
-    */
     for(int i=0;i<totalblocks;i++) {
+        datareference[i]=0;
         visitblock[i]=0;
     }
     for(int i=0;i<sb->ninodes;i++) {
@@ -79,12 +76,15 @@ int main(int argc,char* argv[]) {
             for(int k=0;k<NDIRECT;k++) {
                 if(inode_ptr->addrs[k]==0) continue;
                 dir=(struct dirent *)(img_ptr+BSIZE*inode_ptr->addrs[k]);
-                if(0==strcmp(dir->name,"..")) {
-                    if(ROOTINO!=dir->inum) {
-                        fprintf(stderr,"ERROR: root directory does not exist.\n");
-                        exit(1);
+                for(int e=0;e<BSIZE/sizeof(struct dirent);e++) {
+                        if(0==strcmp(dir->name,"..")) {
+                        if(ROOTINO!=dir->inum) {
+                            fprintf(stderr,"ERROR: root directory does not exist.\n");
+                            exit(1);
+                        }
+                        break;
                     }
-                    break;
+                    dir++;
                 }
             }
         }
@@ -93,6 +93,7 @@ int main(int argc,char* argv[]) {
 ////////check second rules,check whether in valid address
 //Note: must check indirect blocks too, when they are in use. 
         if(inode_ptr->type!=0) {
+            inodeinuse[cur_inodenum]++;//mark inode inuse
             for(int j=0;j<NDIRECT;j++) {//scan through address,only consider direct address
                 if(inode_ptr->addrs[j]!=0) {//inuse address of inode
                     if(img_ptr+BSIZE*inode_ptr->addrs[j]>sysEnd||img_ptr+BSIZE*inode_ptr->addrs[j]<dataStart) {
@@ -120,6 +121,7 @@ int main(int argc,char* argv[]) {
                     fprintf(stderr,"ERROR: bad indirect address in inode.\n");
                     exit(1);
                 }
+                visitblock[inode_ptr->addrs[NDIRECT]]++;//mark indirect block is used
                 for(int k=0;k<NINDIRECT;k++) {
                     if(((int*)indirect_ptr)[k]!=0) {
                         if((img_ptr+((int*)indirect_ptr)[k]*BSIZE>sysEnd)||(img_ptr+((int*)indirect_ptr)[k]*BSIZE<dataStart)) {
@@ -139,7 +141,7 @@ int main(int argc,char* argv[]) {
                     //datareference[inode_ptr->addrs[k]-usedblocks-1]++;
                 }
             }
-            /*
+            
             if(inode_ptr->type==T_DIR) {
                 int findroot=0;
                 int findcur=0;
@@ -147,34 +149,43 @@ int main(int argc,char* argv[]) {
                 for(int k=0;k<NDIRECT;k++) {
                     if(inode_ptr->addrs[k]==0) continue;
                     dir=(struct dirent *)(img_ptr+BSIZE*inode_ptr->addrs[k]);
-                    if(0==strcmp(dir->name,"..")) {
-                        findroot=1;
-                    }
-                    if(0==strcmp(dir->name,".")) {
-                        if(cur_inodenum!=dir->inum) {
-                            fprintf(stderr,"ERROR: directory not properly formatted.\n");
-                            exit(1);
+                    for(int e=0;e<BSIZE/sizeof(struct dirent);e++) {
+                        if(dir->inum!=0) {
+                            if(0==strcmp(dir->name,"..")) {
+                                findroot=1;
+                            }
+                            if(0==strcmp(dir->name,".")) {
+                                if(cur_inodenum!=dir->inum) {
+                                    fprintf(stderr,"ERROR: directory not properly formatted.\n");
+                                    exit(1);
+                                }
+                                findcur=1;
+                            }
+                            inoderefer[dir->inum]++;
                         }
-                        findcur=1;
-                    }
-                    //inoderefer[dir->inum]++;
+                        dir++;
+                    } 
+                    if(findroot==0||findcur==0) {
+                        fprintf(stderr,"ERROR: directory not properly formatted.\n");
+                        exit(1);
+                    } 
                 }
-                if(findroot==0||findcur==0) {
-                    fprintf(stderr,"ERROR: directory not properly formatted.\n");
-                    exit(1);
-                }
+                
                 if(inode_ptr->addrs[NDIRECT]!=0) {
                     //attrct current indirect address
                     void* indirect_ptr=img_ptr+inode_ptr->addrs[NDIRECT]*BSIZE;
                     for(int m=0;m<NINDIRECT;m++) {
                         if(((int*)indirect_ptr)[m]!=0) {
-                            int curref=((struct dirent*)(img_ptr+((int*)indirect_ptr)[m]*BSIZE))->inum;
-                            //inoderefer[curref]++;
+                            dir = (struct dirent*)(img_ptr+((int*)indirect_ptr)[m]*BSIZE);
+                            for(int e=0;e<BSIZE/sizeof(struct dirent);e++) {
+                                inoderefer[dir->inum]++;
+                                dir++;
+                            }
                         }
                     }
                 }
             }
-            */
+            
             //regular file;Reference counts (number of links) for regular files match the number of times file is referred to in directories (i.e., hard links work correctly). 
             /*
             if(inode_ptr->type==T_FILE) {
@@ -192,12 +203,18 @@ int main(int argc,char* argv[]) {
         
         inode_ptr++;
     }
-    /*
+
     inode_ptr=(struct dinode *)(img_ptr+2*BSIZE);
     for(int i=0;i<sb->ninodes;i++) {
         if(inodeinuse[i]!=0) { 
-            if(inoderefer[i]<=1) {
+            if(inoderefer[i]<1) {
                 fprintf(stderr,"ERROR: inode marked use but not found in a directory.\n");
+                exit(1);
+            }
+        }
+        if(inoderefer[i]!=0) {
+            if(inodeinuse[i]==0) {
+                fprintf(stderr,"ERROR: inode referred to in directory but marked free.\n");
                 exit(1);
             }
         }
@@ -207,35 +224,36 @@ int main(int argc,char* argv[]) {
                 exit(1);
             }
         }
-        if(inode_ptr->type==T_DIR) {
-            if(1!=inoderefer[i]) {
-                fprintf(stderr,"ERROR: directory appears more than once in file system.\n");
-                exit(1);
-            }
-        }
+        //if(inode_ptr->type==T_DIR) {
+        //    if(1!=inoderefer[i]) {
+        //        fprintf(stderr,"ERROR: directory appears more than once in file system.\n");
+        //        exit(1);
+        //    }
+        //}
+        inode_ptr++;
     }
-    */
-    //For in-use inodes, each address in use 
-    //is also marked in use in the bitmap. 
-    //ERROR: address used by inode but marked free in bitmap.
-    munmap(img_ptr,0);
-    close(fsfd);
-    //free(visitblock);
-    //free(inodeinuse);
-    //free(datareference);
-    //free(inoderefer);
-    exit(0);
-}
-    //////////////////////////////////////////////////////////
-    //scan through bitmap,acquire respective address of block&inode number
     /*
+//////////////////////////////////////////////////////////
+//scan through bitmap,acquire respective address of block&inode number
     for(int i=0;i<bitblocks;i++) {
         for(int j=0;j<BSIZE;j++) {
             for(int m=0;m<8;m++) {
-                if(((*((int*)(bitStart+j+i*BSIZE)))<<m)&1!=0) {
-                    
+                if(((*((char*)(bitStart+j+i*BSIZE)))<<m)&(0x1<<m)!=0) {
+                    int curaddr=i*BSIZE+j*8+m;
+                    if(visitblock[curaddr]==0) {
+                        fprintf(stderr,"ERROR: bitmap marks block in use but it is not in use.\n");
+                        exit(1);
+                    }
                 }
             }
         }
     }
     */
+    munmap(img_ptr,0);
+    close(fsfd);
+    //free(visitblock);
+    free(inodeinuse);
+    //free(datareference);
+    free(inoderefer);
+    exit(0);
+}
