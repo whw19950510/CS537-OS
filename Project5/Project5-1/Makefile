@@ -1,5 +1,5 @@
 # Warnings
-WFLAGS	:= -Wall -Werror -Wno-unused-parameter -D_GNU_SOURCE
+WFLAGS	:= -Wno-unused-variable -D_GNU_SOURCE
 
 # Optimization and architecture
 OPT		:= -g
