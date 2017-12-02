@@ -47,7 +47,6 @@ int main(int argc,char* argv[]) {
     int cur_inodenum=0;
     //initialize the markup check array with all 0.
     int *visitblock = (int*)malloc(sizeof(int)*totalblocks);
-    int *datareference=(int*)malloc(sizeof(int)*totalblocks);
     int *inodeinuse = (int*)malloc(sizeof(int)*sb->ninodes);//mark inodes inuse situation
     int *inoderefer = (int*)malloc(sizeof(int)*sb->ninodes);
     for(int i=0;i<sb->ninodes;i++) {
@@ -55,7 +54,6 @@ int main(int argc,char* argv[]) {
         inoderefer[i]=0;
     }
     for(int i=0;i<totalblocks;i++) {
-        datareference[i]=0;
         visitblock[i]=0;
     }
     for(int i=0;i<sb->ninodes;i++) {
@@ -110,18 +108,17 @@ int main(int argc,char* argv[]) {
                         exit(1);
                         //set #blockNumber bit in bitmap to 1
                     }
-                    //datareference[inode_ptr->addrs[j]-usedblocks-1]++;
                 }
             }
             //checks indirect address is valid
             if(inode_ptr->addrs[NDIRECT]!=0) {
+                visitblock[inode_ptr->addrs[NDIRECT]]++;//mark indirect block is used
                 //extract current indirect address
                 void* indirect_ptr=img_ptr+inode_ptr->addrs[NDIRECT]*BSIZE;
                 if(indirect_ptr>sysEnd||indirect_ptr<dataStart) {
                     fprintf(stderr,"ERROR: bad indirect address in inode.\n");
                     exit(1);
                 }
-                visitblock[inode_ptr->addrs[NDIRECT]]++;//mark indirect block is used
                 for(int k=0;k<NINDIRECT;k++) {
                     if(((int*)indirect_ptr)[k]!=0) {
                         if((img_ptr+((int*)indirect_ptr)[k]*BSIZE>sysEnd)||(img_ptr+((int*)indirect_ptr)[k]*BSIZE<dataStart)) {
@@ -138,7 +135,6 @@ int main(int argc,char* argv[]) {
                             exit(1);
                         }
                     }
-                    //datareference[inode_ptr->addrs[k]-usedblocks-1]++;
                 }
             }
             
@@ -172,7 +168,7 @@ int main(int argc,char* argv[]) {
                 }
                 
                 if(inode_ptr->addrs[NDIRECT]!=0) {
-                    //attrct current indirect address
+                    //extract current indirect address
                     void* indirect_ptr=img_ptr+inode_ptr->addrs[NDIRECT]*BSIZE;
                     for(int m=0;m<NINDIRECT;m++) {
                         if(((int*)indirect_ptr)[m]!=0) {
@@ -185,25 +181,9 @@ int main(int argc,char* argv[]) {
                     }
                 }
             }
-            
-            //regular file;Reference counts (number of links) for regular files match the number of times file is referred to in directories (i.e., hard links work correctly). 
-            /*
-            if(inode_ptr->type==T_FILE) {
-                for(int m=0;m<NDIRECT;m++) {
-                    if(inode_ptr->nlink!=datareference[inode_ptr->addrs[m]]) {
-                        fprintf(stderr,"ERROR: bad reference count for file.\n");
-                        exit(1);
                     }
-                }
-            }
-            */
-            //#9 rules
-            //inodeinuse[i]++;//marked as in-use inodes
-        }
-        
         inode_ptr++;
     }
-
     inode_ptr=(struct dinode *)(img_ptr+2*BSIZE);
     for(int i=0;i<sb->ninodes;i++) {
         if(inodeinuse[i]!=0) { 
@@ -224,12 +204,12 @@ int main(int argc,char* argv[]) {
                 exit(1);
             }
         }
-        //if(inode_ptr->type==T_DIR) {
-        //    if(1!=inoderefer[i]) {
-        //        fprintf(stderr,"ERROR: directory appears more than once in file system.\n");
-        //        exit(1);
-        //    }
-        //}
+        if(inode_ptr->type==T_DIR) {
+            if(2!=inoderefer[i]) {
+                //fprintf(stderr,"ERROR: directory appears more than once in file system.\n");
+                //exit(1);
+            }
+        }
         inode_ptr++;
     }
     /*
@@ -238,9 +218,9 @@ int main(int argc,char* argv[]) {
     for(int i=0;i<bitblocks;i++) {
         for(int j=0;j<BSIZE;j++) {
             for(int m=0;m<8;m++) {
-                if(((*((char*)(bitStart+j+i*BSIZE)))<<m)&(0x1<<m)!=0) {
-                    int curaddr=i*BSIZE+j*8+m;
-                    if(visitblock[curaddr]==0) {
+                    if((*((char*)(bitStart+j+i*BSIZE)))&(0x1<<m)!=0) {
+                        int curblock=BBLOCK(0,sb->ninodes) + bitblocks + i + j*8 + m;
+                        if(visitblock[curblock]==0) {
                         fprintf(stderr,"ERROR: bitmap marks block in use but it is not in use.\n");
                         exit(1);
                     }
@@ -249,11 +229,11 @@ int main(int argc,char* argv[]) {
         }
     }
     */
+    
     munmap(img_ptr,0);
     close(fsfd);
-    //free(visitblock);
+    free(visitblock);
     free(inodeinuse);
-    //free(datareference);
     free(inoderefer);
     exit(0);
 }
