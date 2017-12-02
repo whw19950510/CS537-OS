@@ -42,7 +42,7 @@ void exit_handler(int sig) {
 
 int main(int argc, char *argv[]) {
     // ADD
-    if(argc!=2)
+    if(argc!=2||strlen(argv[1])>9||strlen(argv[1])==0)
     {
         fprintf(stderr, "error happens");
 		exit(1);
