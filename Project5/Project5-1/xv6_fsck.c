@@ -14,7 +14,7 @@ int bitblocks;
 int totalblocks;
 
 int main(int argc,char* argv[]) {
-    if(argc!=2) {
+    if(argc==1) {
         fprintf(stderr,"Usage: xv6_fsck <file_system_image>.\n");
         exit(1);
     }
@@ -46,16 +46,27 @@ int main(int argc,char* argv[]) {
     void *sysEnd = dataStart+sb->nblocks*BSIZE;//file system end address
     int cur_inodenum=0;
     //initialize the markup check array with all 0.
+    int *dirreference = (int*)malloc(sizeof(int)*sb->ninodes);
+    int *dirarr = (int*)malloc(sizeof(int)*sb->ninodes);
     int *visitblock = (int*)malloc(sizeof(int)*totalblocks);
     int *inodeinuse = (int*)malloc(sizeof(int)*sb->ninodes);//mark inodes inuse situation
     int *inoderefer = (int*)malloc(sizeof(int)*sb->ninodes);
     for(int i=0;i<sb->ninodes;i++) {
         inodeinuse[i]=0;
         inoderefer[i]=0;
+        dirreference[i]=0;
+        dirarr[i]=0;
     }
     for(int i=0;i<totalblocks;i++) {
         visitblock[i]=0;
     }
+    for(int i=0;i<sb->ninodes;i++) {
+        if(inode_ptr->type==T_DIR) {
+            dirarr[i]=1;
+        }
+        inode_ptr++;
+    }
+    inode_ptr = (struct dinode *)(img_ptr+2*BSIZE);
     for(int i=0;i<sb->ninodes;i++) {
         cur_inodenum = i;
         //check first rules
@@ -158,6 +169,9 @@ int main(int argc,char* argv[]) {
                                 findcur=1;
                             }
                             inoderefer[dir->inum]++;
+                            if(dirarr[dir->inum]==1&&0!=strcmp(dir->name,"..")&&0!=strcmp(dir->name,".")) {
+                                dirreference[dir->inum]++;//is a directory, count how many times is counted
+                            }
                         }
                         dir++;
                     } 
@@ -175,13 +189,14 @@ int main(int argc,char* argv[]) {
                             dir = (struct dirent*)(img_ptr+((int*)indirect_ptr)[m]*BSIZE);
                             for(int e=0;e<BSIZE/sizeof(struct dirent);e++) {
                                 inoderefer[dir->inum]++;
+                                if(dirarr[dir->inum]==1) dirreference[dir->inum]++;
                                 dir++;
                             }
                         }
                     }
                 }
             }
-                    }
+        }
         inode_ptr++;
     }
     inode_ptr=(struct dinode *)(img_ptr+2*BSIZE);
@@ -205,7 +220,7 @@ int main(int argc,char* argv[]) {
             }
         }
         if(inode_ptr->type==T_DIR) {
-            if(2!=inoderefer[i]) {
+            if(1!=dirreference[i]) {
                 //fprintf(stderr,"ERROR: directory appears more than once in file system.\n");
                 //exit(1);
             }
