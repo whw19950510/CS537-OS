@@ -51,18 +51,26 @@ int main(int argc,char* argv[]) {
     int *visitblock = (int*)malloc(sizeof(int)*totalblocks);
     int *inodeinuse = (int*)malloc(sizeof(int)*sb->ninodes);//mark inodes inuse situation
     int *inoderefer = (int*)malloc(sizeof(int)*sb->ninodes);
+    int *parentinum = (int*)malloc(sizeof(int)*sb->ninodes);
+    int **childentry = (int**)malloc(sizeof(int*)*sb->ninodes);//rows of directory
+    for(int i=0;i<sb->ninodes;i++) {
+        childentry[i]=(int*)malloc(sizeof(int)*sb->ninodes);//columns of directory
+    }
     for(int i=0;i<sb->ninodes;i++) {
         inodeinuse[i]=0;
         inoderefer[i]=0;
         dirreference[i]=0;
         dirarr[i]=0;
+        parentinum[i]=0;
+        for(int j=0;j<sb->ninodes;j++)
+            childentry[i][j]=0;
     }
     for(int i=0;i<totalblocks;i++) {
         visitblock[i]=0;
     }
     for(int i=0;i<sb->ninodes;i++) {
         if(inode_ptr->type==T_DIR) {
-            dirarr[i]=1;
+            dirarr[i]=1;//record all directory type inodes
         }
         inode_ptr++;
     }
@@ -157,8 +165,9 @@ int main(int argc,char* argv[]) {
                     if(inode_ptr->addrs[k]==0) continue;
                     dir=(struct dirent *)(img_ptr+BSIZE*inode_ptr->addrs[k]);
                     for(int e=0;e<BSIZE/sizeof(struct dirent);e++) {
-                        if(dir->inum!=0) {
+                        if(dir->inum!=0) {      //for each inuse entry
                             if(0==strcmp(dir->name,"..")) {
+                                parentinum[cur_inodenum]=dir->inum;
                                 findroot=1;
                             }
                             if(0==strcmp(dir->name,".")) {
@@ -171,6 +180,7 @@ int main(int argc,char* argv[]) {
                             inoderefer[dir->inum]++;
                             if(dirarr[dir->inum]==1&&0!=strcmp(dir->name,"..")&&0!=strcmp(dir->name,".")) {
                                 dirreference[dir->inum]++;//is a directory, count how many times is counted
+                                childentry[cur_inodenum][dir->inum]=1;  //record only children directory in the current directory
                             }
                         }
                         dir++;
@@ -189,7 +199,10 @@ int main(int argc,char* argv[]) {
                             dir = (struct dirent*)(img_ptr+((int*)indirect_ptr)[m]*BSIZE);
                             for(int e=0;e<BSIZE/sizeof(struct dirent);e++) {
                                 inoderefer[dir->inum]++;
-                                if(dirarr[dir->inum]==1) dirreference[dir->inum]++;
+                                if(dirarr[dir->inum]==1&&0!=strcmp(dir->name,"..")&&0!=strcmp(dir->name,".")) {
+                                    dirreference[dir->inum]++;//is a directory, count how many times is counted
+                                    childentry[cur_inodenum][dir->inum]=1;  //record only children directory in the current directory
+                                }
                                 dir++;
                             }
                         }
@@ -227,6 +240,17 @@ int main(int argc,char* argv[]) {
         }
         inode_ptr++;
     }
+    //check first extra rules
+    for(int i=0;i<sb->ninodes;i++) {
+        for(int j=0;j<sb->ninodes;j++) {
+            if(childentry[i][j]==1) {
+                if(parentinum[j]!=i) {
+                    fprintf(stderr,"ERROR: parent directory mismatch.");
+                    exit(1);
+                }
+            }
+        }
+    }
     /*
 //////////////////////////////////////////////////////////
 //scan through bitmap,acquire respective address of block&inode number
@@ -250,5 +274,12 @@ int main(int argc,char* argv[]) {
     free(visitblock);
     free(inodeinuse);
     free(inoderefer);
+    free(dirarr);
+    free(dirreference);
+    free(parentinum);
+    for(int i=0;i<sb->ninodes;i++) {
+        free(childentry[i]);//columns of directory
+    }
+    free(childentry);
     exit(0);
 }
