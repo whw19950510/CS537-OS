@@ -7,7 +7,8 @@
 // Block 0 is unused.
 // Block 1 is super block.
 // Inodes start at block 2.
-
+typedef unsigned int   uint;
+typedef unsigned short ushort;
 #define ROOTINO 1  // root i-number
 #define BSIZE 512  // block size
 #define T_DIR  1   // Directory
@@ -48,10 +49,10 @@ struct dinode {
 
 // Directory is a file containing a sequence of dirent structures.
 #define DIRSIZ 14
-/*
+
 struct dirent {
-  ushort inum;
+  ushort inum;//////////file inum,go through the datablocsks if it inum somewhere
   char name[DIRSIZ];
 };
-*/
+
 #endif // _FS_H_

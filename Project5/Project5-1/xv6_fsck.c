@@ -14,7 +14,7 @@ int bitblocks;
 int totalblocks;
 
 int main(int argc,char* argv[]) {
-    if(argc!=2) {
+    if(argc==1) {
         fprintf(stderr,"Usage: xv6_fsck <file_system_image>.\n");
         exit(1);
     }
@@ -46,16 +46,37 @@ int main(int argc,char* argv[]) {
     void *sysEnd = dataStart+sb->nblocks*BSIZE;//file system end address
     int cur_inodenum=0;
     //initialize the markup check array with all 0.
+    int *dirreference = (int*)malloc(sizeof(int)*sb->ninodes);
+    int *dirarr = (int*)malloc(sizeof(int)*sb->ninodes);
     int *visitblock = (int*)malloc(sizeof(int)*totalblocks);
     int *inodeinuse = (int*)malloc(sizeof(int)*sb->ninodes);//mark inodes inuse situation
     int *inoderefer = (int*)malloc(sizeof(int)*sb->ninodes);
+    int *parentinum = (int*)malloc(sizeof(int)*sb->ninodes);
+    int **childentry = (int**)malloc(sizeof(int*)*sb->ninodes);//rows of directory
+    int *loopdetect=(int*)malloc(sizeof(int)*sb->ninodes);
+    for(int i=0;i<sb->ninodes;i++) {
+        childentry[i]=(int*)malloc(sizeof(int)*sb->ninodes);//columns of directory
+    }
     for(int i=0;i<sb->ninodes;i++) {
         inodeinuse[i]=0;
         inoderefer[i]=0;
+        dirreference[i]=0;
+        dirarr[i]=0;
+        parentinum[i]=0;
+        loopdetect[i]=0;
+        for(int j=0;j<sb->ninodes;j++)
+            childentry[i][j]=0;
     }
     for(int i=0;i<totalblocks;i++) {
         visitblock[i]=0;
     }
+    for(int i=0;i<sb->ninodes;i++) {
+        if(inode_ptr->type==T_DIR) {
+            dirarr[i]=1;//record all directory type inodes
+        }
+        inode_ptr++;
+    }
+    inode_ptr = (struct dinode *)(img_ptr+2*BSIZE);
     for(int i=0;i<sb->ninodes;i++) {
         cur_inodenum = i;
         //check first rules
@@ -146,8 +167,9 @@ int main(int argc,char* argv[]) {
                     if(inode_ptr->addrs[k]==0) continue;
                     dir=(struct dirent *)(img_ptr+BSIZE*inode_ptr->addrs[k]);
                     for(int e=0;e<BSIZE/sizeof(struct dirent);e++) {
-                        if(dir->inum!=0) {
+                        if(dir->inum!=0) {      //for each inuse entry
                             if(0==strcmp(dir->name,"..")) {
+                                parentinum[cur_inodenum]=dir->inum;
                                 findroot=1;
                             }
                             if(0==strcmp(dir->name,".")) {
@@ -158,6 +180,10 @@ int main(int argc,char* argv[]) {
                                 findcur=1;
                             }
                             inoderefer[dir->inum]++;
+                            if(dirarr[dir->inum]==1&&0!=strcmp(dir->name,"..")&&0!=strcmp(dir->name,".")) {
+                                dirreference[dir->inum]++;//is a directory, count how many times is counted
+                                childentry[cur_inodenum][dir->inum]=1;  //record only children directory in the current directory
+                            }
                         }
                         dir++;
                     } 
@@ -175,13 +201,17 @@ int main(int argc,char* argv[]) {
                             dir = (struct dirent*)(img_ptr+((int*)indirect_ptr)[m]*BSIZE);
                             for(int e=0;e<BSIZE/sizeof(struct dirent);e++) {
                                 inoderefer[dir->inum]++;
+                                if(dirarr[dir->inum]==1&&0!=strcmp(dir->name,"..")&&0!=strcmp(dir->name,".")) {
+                                    dirreference[dir->inum]++;//is a directory, count how many times is counted
+                                    childentry[cur_inodenum][dir->inum]=1;  //record only children directory in the current directory
+                                }
                                 dir++;
                             }
                         }
                     }
                 }
             }
-                    }
+        }
         inode_ptr++;
     }
     inode_ptr=(struct dinode *)(img_ptr+2*BSIZE);
@@ -205,12 +235,38 @@ int main(int argc,char* argv[]) {
             }
         }
         if(inode_ptr->type==T_DIR) {
-            if(2!=inoderefer[i]) {
+            if(1!=dirreference[i]) {
                 //fprintf(stderr,"ERROR: directory appears more than once in file system.\n");
                 //exit(1);
             }
         }
         inode_ptr++;
+    }
+    //check first extra rules
+    for(int i=0;i<sb->ninodes;i++) {
+        for(int j=0;j<sb->ninodes;j++) {
+            if(childentry[i][j]==1) {
+                if(parentinum[j]!=i) {
+                    fprintf(stderr,"ERROR: parent directory mismatch.\n");
+                    exit(1);
+                }
+            }
+        }
+    }
+    //check second extra rules, no loop in directory, all refers to root directory
+    //continue loop finding its parent until reach ROOTINO
+    for(int i=0;i<sb->ninodes;i++) {
+        if(dirarr[i]!=0&&loopdetect[i]!=1) {
+            int currentde=i;
+            while(parentinum[currentde]!=ROOTINO) {
+                if(loopdetect[currentde]!=0) {
+                    fprintf(stderr,"ERROR: inaccessible directory exists.\n");
+                    exit(1);
+                }
+                loopdetect[currentde]++;
+                currentde=parentinum[currentde];
+            }
+        }
     }
     /*
 //////////////////////////////////////////////////////////
@@ -235,5 +291,13 @@ int main(int argc,char* argv[]) {
     free(visitblock);
     free(inodeinuse);
     free(inoderefer);
+    free(dirarr);
+    free(dirreference);
+    free(parentinum);
+    for(int i=0;i<sb->ninodes;i++) {
+        free(childentry[i]);//columns of directory
+    }
+    free(childentry);
+    free(loopdetect);
     exit(0);
 }
