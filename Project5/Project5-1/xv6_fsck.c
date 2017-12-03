@@ -53,6 +53,7 @@ int main(int argc,char* argv[]) {
     int *inoderefer = (int*)malloc(sizeof(int)*sb->ninodes);
     int *parentinum = (int*)malloc(sizeof(int)*sb->ninodes);
     int **childentry = (int**)malloc(sizeof(int*)*sb->ninodes);//rows of directory
+    int *loopdetect=(int*)malloc(sizeof(int)*sb->ninodes);
     for(int i=0;i<sb->ninodes;i++) {
         childentry[i]=(int*)malloc(sizeof(int)*sb->ninodes);//columns of directory
     }
@@ -62,6 +63,7 @@ int main(int argc,char* argv[]) {
         dirreference[i]=0;
         dirarr[i]=0;
         parentinum[i]=0;
+        loopdetect[i]=0;
         for(int j=0;j<sb->ninodes;j++)
             childentry[i][j]=0;
     }
@@ -245,9 +247,24 @@ int main(int argc,char* argv[]) {
         for(int j=0;j<sb->ninodes;j++) {
             if(childentry[i][j]==1) {
                 if(parentinum[j]!=i) {
-                    fprintf(stderr,"ERROR: parent directory mismatch.");
+                    fprintf(stderr,"ERROR: parent directory mismatch.\n");
                     exit(1);
                 }
+            }
+        }
+    }
+    //check second extra rules, no loop in directory, all refers to root directory
+    //continue loop finding its parent until reach ROOTINO
+    for(int i=0;i<sb->ninodes;i++) {
+        if(dirarr[i]!=0&&loopdetect[i]!=1) {
+            int currentde=i;
+            while(parentinum[currentde]!=ROOTINO) {
+                if(loopdetect[currentde]!=0) {
+                    fprintf(stderr,"ERROR: inaccessible directory exists.\n");
+                    exit(1);
+                }
+                loopdetect[currentde]++;
+                currentde=parentinum[currentde];
             }
         }
     }
@@ -281,5 +298,6 @@ int main(int argc,char* argv[]) {
         free(childentry[i]);//columns of directory
     }
     free(childentry);
+    free(loopdetect);
     exit(0);
 }
