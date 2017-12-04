@@ -222,7 +222,7 @@ int main(int argc,char* argv[]) {
                 exit(1);
             }
         }
-        if(inoderefer[i]!=0) {
+        if(dirreference[i]!=0) {
             if(inodeinuse[i]==0) {
                 fprintf(stderr,"ERROR: inode referred to in directory but marked free.\n");
                 exit(1);
@@ -235,9 +235,11 @@ int main(int argc,char* argv[]) {
             }
         }
         if(inode_ptr->type==T_DIR) {
-            if(1!=dirreference[i]) {
-                //fprintf(stderr,"ERROR: directory appears more than once in file system.\n");
-                //exit(1);
+            //notice that dirreference shouldn't include . and .. entry.
+            //but for root directory,the reference will always be 0(no reference)
+            if((ROOTINO!=i&&1!=dirreference[i])||(i==ROOTINO&&0!=dirreference[i])) {
+                fprintf(stderr,"ERROR: directory appears more than once in file system.\n");
+                exit(1);
             }
         }
         inode_ptr++;
