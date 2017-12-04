@@ -7,18 +7,15 @@
 #include<unistd.h>
 #include<fcntl.h>
 #include "fs.h"
-int fsfd;
 struct superblock* sb;
-int usedblocks;
-int bitblocks;
-int totalblocks;
+
 
 int main(int argc,char* argv[]) {
     if(argc==1) {
         fprintf(stderr,"Usage: xv6_fsck <file_system_image>.\n");
         exit(1);
     }
-    fsfd = open(argv[1], O_RDONLY);
+    int fsfd = open(argv[1], O_RDONLY);
     //if file doesn't exists, exit
     if(fsfd < 0) {
         fprintf(stderr,"image not found.\n");
@@ -35,10 +32,10 @@ int main(int argc,char* argv[]) {
     }
 /////////////////////////////////////////////////////////////////////
     sb=(struct superblock*)(img_ptr+BSIZE);
-    bitblocks = sb->size/(512*8) + 1;/////////bitblock占用block数目
+    int bitblocks = sb->size/(512*8) + 1;/////////bitblock占用block数目
     //usedblocks=sb->ninodes / IPB + 3 + bitblocks;//////////已经使用的block
-    usedblocks = bitblocks+BBLOCK(0,sb->ninodes);
-    totalblocks=usedblocks+sb->nblocks;
+    int usedblocks = bitblocks+BBLOCK(0,sb->ninodes);
+    int totalblocks=usedblocks+sb->nblocks;
     //check inode table
     struct dinode *inode_ptr=(struct dinode *)(img_ptr+2*BSIZE);
     void *bitStart = img_ptr + BBLOCK(0,sb->ninodes)*BSIZE; //start of bits
@@ -222,7 +219,8 @@ int main(int argc,char* argv[]) {
                 exit(1);
             }
         }
-        if(dirreference[i]!=0) {
+        if(inoderefer[i]!=0&&i!=0) {
+            // exclude first unused inode
             if(inodeinuse[i]==0) {
                 fprintf(stderr,"ERROR: inode referred to in directory but marked free.\n");
                 exit(1);
@@ -275,10 +273,13 @@ int main(int argc,char* argv[]) {
 //scan through bitmap,acquire respective address of block&inode number
     for(int i=0;i<bitblocks;i++) {
         for(int j=0;j<BSIZE;j++) {
-            for(int m=0;m<8;m++) {
-                    if((*((char*)(bitStart+j+i*BSIZE)))&(0x1<<m)!=0) {
-                        int curblock=BBLOCK(0,sb->ninodes) + bitblocks + i + j*8 + m;
-                        if(visitblock[curblock]==0) {
+            for(uint m=0;m<8;m++) {
+                printf("char:%x\n",(*((unsigned char*)(img_ptr+BBLOCK(0,sb->ninodes)*BSIZE+j+i*BSIZE))));
+                if(((*((unsigned char*)(img_ptr+BBLOCK(0,sb->ninodes)*BSIZE+j+i*BSIZE)))&(0x1<<m))!=0) {
+                    printf("char:%x\n",(*((unsigned char*)(img_ptr+BBLOCK(0,sb->ninodes)*BSIZE+j+i*BSIZE))));
+                    int curblock=BBLOCK(0,sb->ninodes) + bitblocks + i + j*8 + m;
+                    printf("curblock:%d visitblock:%d\n",curblock,visitblock[curblock]);
+                    if(visitblock[curblock]==0) {
                         fprintf(stderr,"ERROR: bitmap marks block in use but it is not in use.\n");
                         exit(1);
                     }
@@ -287,7 +288,14 @@ int main(int argc,char* argv[]) {
         }
     }
     */
-    
+    for(int addr=BBLOCK(0,sb->ninodes)+1;addr<sb->nblocks;addr++) {
+        if((((unsigned char*)bitStart)[addr/8]>>(addr%8))&0x1!=0) {
+            if(visitblock[addr]==0) {
+                fprintf(stderr,"ERROR: bitmap marks block in use but it is not in use.\n");
+                exit(1);
+            }
+        }
+    }
     munmap(img_ptr,0);
     close(fsfd);
     free(visitblock);
