@@ -91,7 +91,7 @@ int main(int argc, char*argv[])
                     if(inode_ptr->addrs[k]==0) continue;
                     dirtemp=(struct dirent *)(img_ptr+BSIZE*inode_ptr->addrs[k]);
                     for(int e=0;e<BSIZE/sizeof(struct dirent);e++) {
-                        if(dirtemp->inum!=0) {
+                        if(dirtemp->inum!=0&&e!=0&&e!=1) {
                             inoderefer[dirtemp->inum]++;
                         }
                         dirtemp++;
@@ -121,18 +121,18 @@ int main(int argc, char*argv[])
 
         for(int i=0;i<sb->ninodes;i++) {
             if(inodeinuse[i]==1) {
-                if(inoderefer[i]==0) {
-                    printf("lostinode:%d\n",i);
+                if(i!=ROOTINO&&inoderefer[i]==0) {
+                    //printf("lostinode:%d\n",i);
                     targetinode[i]=1;
                     error++;
                 }
             }
         }
-        printf("totalinum:%d\nlostdirinodenum:%d\ndeal with error:%d\n",sb->ninodes,lfinum,error);
+        //printf("totalinum:%d\nlostdirinodenum:%d\ndeal with error:%d\n",sb->ninodes,lfinum,error);
         if(error!=0) {
             inode_ptr = (struct dinode *)(img_ptr+2*BSIZE);
             struct dinode* lfinode = (inode_ptr+lfinum);//address of lost found dinode
-            struct dirent* dircur=(struct dirent*)(img_ptr+lfinode->addrs[0]);
+            struct dirent* dircur=(struct dirent*)(img_ptr+lfinode->addrs[0]*BSIZE);
             dircur+=2;
             for(int j=0;error>0&&j<sb->ninodes;j++) {
                 if(targetinode[j]!=0) {
@@ -142,23 +142,26 @@ int main(int argc, char*argv[])
                     dircur++;
                 }
             }
+            
             for(int j=0;j<sb->ninodes;j++) {
                 //deal with lost inode whose type are directories
                 if(targetinode[j]!=0&&dirinode[j]!=0) {
                     inode_ptr = (struct dinode *)(img_ptr+2*BSIZE);
                     struct dinode* lostdir = (inode_ptr+j);
-                    struct dirent* direntpar=(struct dirent*)(img_ptr+lostdir->addrs[0]);
+                    struct dirent* direntpar=(struct dirent*)(img_ptr+lostdir->addrs[0]*BSIZE);
                     direntpar->inum=j;//. points to itself
+                    strcpy(direntpar->name,".");
                     direntpar++;
                     direntpar->inum=lfinum;//.. points to lost_found directory
-                    strcpy(direntpar->name,"lost_found");
+                    strcpy(direntpar->name,"..");
                 }
             }
+            
             if(-1==msync(img_ptr,totalblocks*BSIZE,MS_SYNC)) {
                 fprintf(stderr,"fail to write back to files\n");
                 exit(1);
             }
-            printf("success:error:%d\n",error);
+            //printf("success:error:%d\n",error);
         }
         munmap(img_ptr,0);
         close(fsfd);

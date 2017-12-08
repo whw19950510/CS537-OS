@@ -42,3 +42,8 @@ root | superblock | inodetable | databitmap | datablock
 notice:each inode with T_FILE points to some block in datablock;each inode with T_DIR points has addr/indirect addr field, indirect address points to a datablock, which is full of address,this address again points to a dirent entry in the datablock, which is part of the datablock, thus we need to scan the datablock again to find each entry's content.
 
 for rule#10,notice that should exclude the 1st unused inode.
+
+#extra3
+In order to repair the file image which has No.10th error, need to find the inode number of lost_found directory first, then compare and find all inconsistency lost inode. Finally, put them into entry of the directory dirent. 
+Notice that:need mmap() MAP_SHARED because this specifies that writes to the region will be written back to the file. Changes made will be shared immediately with other processes mmaping the same file. Note that actual writing may take place at any time. You need to use  msync, described below, if it is important that other processes using conventional I/O get a consistent view of the file.
+多进程的共享，因此需要msync(void*,size,MSYNC/MASYNC)立即同步写入内容.

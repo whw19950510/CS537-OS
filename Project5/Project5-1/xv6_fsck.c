@@ -11,7 +11,7 @@ struct superblock* sb;
 
 
 int main(int argc,char* argv[]) {
-    if(argc==1) {
+    if(argc!=2&&argc!=3) {
         fprintf(stderr,"Usage: xv6_fsck <file_system_image>.\n");
         exit(1);
     }
