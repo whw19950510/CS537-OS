@@ -13,8 +13,8 @@ LDOPT 	:= $(OPT)
 LDFLAGS := -lrt -lpthread 
 
 .DEFAULT_GOAL := all
-EXEC := xv6_fsck
-OBJS := xv6_fsck.o 
+EXEC := xv6_fsck repair
+OBJS := xv6_fsck.o repair.o
 .PHONY: debug
 debug : OPT  := -O0 -g -fno-omit-frame-pointer -fsanitize=address
 debug : LDFLAGS := -fsanitize=address
@@ -29,6 +29,10 @@ all : Makefile $(EXEC)
 
 # TODO: add targets for building executables
 xv6_fsck: xv6_fsck.o
+	@ echo Building $@...
+	@ $(CXX) -o $@ $< $(LDFLAGS) $(LDFLAGS)
+
+repair: repair.o
 	@ echo Building $@...
 	@ $(CXX) -o $@ $< $(LDFLAGS) $(LDFLAGS)
 
